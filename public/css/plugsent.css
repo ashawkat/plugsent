@@ -32,3 +32,118 @@ html,
 body {
     font-family: 'Google Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
+
+/* ---- Site detail: live process panel + header strip ---- */
+
+.plugsent-site-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.plugsent-site-url {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.plugsent-site-url:hover {
+    text-decoration: underline;
+}
+
+.plugsent-meta {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.dark .plugsent-site-url,
+.dark .plugsent-meta {
+    color: #9ca3af;
+}
+
+.plugsent-process-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.plugsent-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: #111827;
+}
+
+.dark .plugsent-step {
+    color: #f3f4f6;
+}
+
+.plugsent-step-icon {
+    display: inline-flex;
+    width: 20px;
+    height: 20px;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+
+.plugsent-step-wait {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #9ca3af;
+}
+
+.plugsent-step-label {
+    font-weight: 500;
+}
+
+.plugsent-step-subject {
+    font-weight: 400;
+    color: #6b7280;
+}
+
+.dark .plugsent-step-subject {
+    color: #9ca3af;
+}
+
+.plugsent-spin {
+    animation: plugsent-rotate 1s linear infinite;
+    color: #4f46e5;
+}
+
+@keyframes plugsent-rotate {
+    to { transform: rotate(360deg); }
+}
+
+.plugsent-progress {
+    margin-top: 16px;
+}
+
+.plugsent-progress-label {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.plugsent-progress-track {
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    background: #e5e7eb;
+    overflow: hidden;
+}
+
+.dark .plugsent-progress-track {
+    background: #374151;
+}
+
+.plugsent-progress-fill {
+    height: 8px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #6366f1, #4338ca);
+    transition: width 0.5s ease;
+}
