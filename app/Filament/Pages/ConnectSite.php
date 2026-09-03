@@ -16,10 +16,9 @@ use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\EmbeddedSchema;
 use Filament\Schemas\Components\Form;
-use Filament\Schemas\Components\Section;
-use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Facades\Log;
 
 class ConnectSite extends Page
 {
@@ -98,6 +97,7 @@ class ConnectSite extends Page
 
         $this->pairingCode = $pairing['code'];
         $this->expiresAt = $pairing['expires_at']->format('H:i');
+        Log::debug('CONNECT_END', ['code' => $this->pairingCode]);
 
         Notification::make()
             ->title('Site registered — pairing code ready')
@@ -107,17 +107,13 @@ class ConnectSite extends Page
 
     public function content(Schema $schema): Schema
     {
-        $components = [$this->getFormContentComponent()];
-
-        if (filled($this->pairingCode)) {
-            $components[] = Section::make('Finish pairing on the WordPress site')
-                ->description('Valid for 15 minutes, single use. The site flips to Connected automatically on its first check-in.')
-                ->components([
-                    View::make('filament.pages.connect-site-instructions'),
-                ]);
-        }
-
-        return $schema->components($components);
+        // The pairing instructions are NOT part of this schema: Filament caches
+        // page schemas during hydration, before connect() runs, so a conditional
+        // here would never see the freshly issued code. The blade view renders
+        // them after the form, gated on the live property instead.
+        return $schema->components([
+            $this->getFormContentComponent(),
+        ]);
     }
 
     protected function getFormContentComponent(): Component

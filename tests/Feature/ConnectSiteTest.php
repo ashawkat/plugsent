@@ -32,7 +32,9 @@ class ConnectSiteTest extends TestCase
                 'project_id' => $project->id,
             ])
             ->call('connect')
-            ->assertHasNoFormErrors();
+            ->assertHasNoFormErrors()
+            ->assertSee('Finish pairing on the WordPress site')
+            ->assertSee('PLSG-');
 
         $site = $workspace->sites()->where('name', 'BT Demo')->first();
 
