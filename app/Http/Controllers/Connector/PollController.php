@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Connector;
 
+use App\Actions\EnqueueSiteCommand;
 use App\Http\Controllers\Controller;
 use App\Models\SiteCommand;
 use Illuminate\Http\JsonResponse;
@@ -19,6 +20,23 @@ class PollController extends Controller
             'capabilities' => $request->input('capabilities') ?? $site->capabilities,
         ]);
         $site->markSeen();
+
+        // Self-heal: a connected site that has never delivered inventory
+        // (or lost it) gets asked again — but only when no inventory
+        // request is outstanding, throttled to one ask every 5 minutes.
+        if ($site->inventory()->count() === 0
+            && ! SiteCommand::query()
+                ->where('site_id', $site->getKey())
+                ->where('type', 'inventory.get')
+                ->whereIn('status', [SiteCommand::STATUS_PENDING, SiteCommand::STATUS_DISPATCHED])
+                ->exists()
+            && ! SiteCommand::query()
+                ->where('site_id', $site->getKey())
+                ->where('type', 'inventory.get')
+                ->where('created_at', '>', now()->subMinutes(5))
+                ->exists()) {
+            app(EnqueueSiteCommand::class)($site, 'inventory.get');
+        }
 
         $commands = SiteCommand::query()
             ->where('site_id', $site->getKey())

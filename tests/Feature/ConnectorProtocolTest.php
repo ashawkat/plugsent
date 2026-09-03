@@ -176,15 +176,29 @@ class ConnectorProtocolTest extends TestCase
     {
         [$site, $keyPair] = $this->pairedSite();
 
+        // Deliver the pairing-time inventory so the site has data on record
+        // (this also stops the self-heal from re-asking during this test).
+        $first = $this->signedCall(
+            '/connector/v1/poll',
+            ['wp_version' => '6.8.1'],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        )->json('commands');
+        $this->signedCall(
+            '/connector/v1/results',
+            ['results' => array_map(fn (array $c) => [
+                'id' => $c['id'], 'status' => 'ok', 'data' => ['inventory' => $this->sampleInventory()],
+            ], $first)],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        );
+
+        // Queue a plugin update.
         app(EnqueueSiteCommand::class)(
             $site,
             'update.run',
             ['context' => 'plugin', 'slug' => 'akismet'],
         );
-
-        // Pairing queued an inventory command; clear it so the next poll
-        // returns exactly the update command under test.
-        SiteCommand::query()->where('site_id', $site->id)->where('type', 'inventory.get')->delete();
 
         // The site polls and receives exactly the update command.
         $pollResponse = $this->signedCall(
@@ -216,6 +230,42 @@ class ConnectorProtocolTest extends TestCase
             'type' => 'inventory.get',
             'status' => SiteCommand::STATUS_PENDING,
         ]);
+    }
+
+    public function test_connected_site_with_empty_inventory_is_asked_for_it(): void
+    {
+        [$site, $keyPair] = $this->pairedSite();
+
+        // Consume everything pending, then wipe inventory to simulate a site
+        // whose inventory was never delivered.
+        $first = $this->signedCall(
+            '/connector/v1/poll',
+            [],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        )->json('commands');
+        $this->signedCall(
+            '/connector/v1/results',
+            ['results' => array_map(fn (array $c) => [
+                'id' => $c['id'], 'status' => 'ok', 'data' => ['inventory' => $this->sampleInventory()],
+            ], $first)],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        );
+        $site->inventory()->delete();
+
+        // Simulate the 5-minute self-heal cooldown having elapsed.
+        $this->travel(6)->minutes();
+
+        // The next poll self-heals: the platform asks for inventory again.
+        $response = $this->signedCall(
+            '/connector/v1/poll',
+            [],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        );
+        $response->assertOk()->assertJsonCount(1, 'commands');
+        $this->assertSame('inventory.get', $response->json('commands.0.type'));
     }
 
     public function test_update_run_failures_are_recorded(): void
