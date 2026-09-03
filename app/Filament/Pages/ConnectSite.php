@@ -49,6 +49,11 @@ class ConnectSite extends Page
         $this->form->fill();
     }
 
+    public function defaultForm(Schema $schema): Schema
+    {
+        return $schema->statePath('data');
+    }
+
     public function form(Schema $schema): Schema
     {
         return $schema
