@@ -1,0 +1,23 @@
+# Local/self-host database. Run with: docker compose up -d
+# Then set in .env:
+#   DB_CONNECTION=pgsql
+#   DB_HOST=127.0.0.1
+#   DB_PORT=5432
+#   DB_DATABASE=plugsent
+#   DB_USERNAME=plugsent
+#   DB_PASSWORD=secret
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: plugsent
+      POSTGRES_USER: plugsent
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - plugsent-pgdata:/var/lib/postgresql/data
+
+volumes:
+  plugsent-pgdata:

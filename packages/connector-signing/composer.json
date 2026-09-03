@@ -1,0 +1,14 @@
+{
+    "name": "plugsent/connector-signing",
+    "description": "HMAC request signing for the Plugsent WordPress connector protocol (v1). Shared by the Plugsent platform and the WordPress connector plugin.",
+    "license": "GPL-2.0-or-later",
+    "type": "library",
+    "require": {
+        "php": "^7.4|^8.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Plugsent\\ConnectorSigning\\": "src/"
+        }
+    }
+}
