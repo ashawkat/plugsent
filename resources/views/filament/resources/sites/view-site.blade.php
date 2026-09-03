@@ -1,9 +1,8 @@
 <x-filament-panels::page wire:poll.3s>
     @php
         $connected = $this->site->isConnected();
-        $running = $this->runningProcesses();
-        $progress = $this->processProgress();
-        $elapsed = $running->isNotEmpty() ? (int) abs(now()->diffInSeconds($running->first()->created_at)) : 0;
+        $batch = $this->currentBatch();
+        $elapsed = $batch['elapsed'] ?? 0;
     @endphp
 
     <div class="plugsent-site-strip">
@@ -25,48 +24,59 @@
         @endif
     </div>
 
-    @if($running->isNotEmpty())
+    @if($batch)
         <x-filament::section class="plugsent-process">
             <x-slot:heading>
-                Process in progress
+                {{ $batch['finished'] ? 'Process finished' : 'Process in progress' }}
             </x-slot:heading>
             <x-slot:description>
-                Running for {{ $elapsed }}s — this page updates itself.
+                Running for {{ $elapsed }}s — {{ $batch['done'] }} / {{ $batch['total'] }} updates done. This page updates itself.
             </x-slot:description>
 
             <div class="plugsent-process-steps">
-                @foreach($running as $cmd)
+                @foreach($batch['commands'] as $cmd)
                     @php
                         $subject = match ($cmd->type) {
                             'update.run' => ($cmd->payload['slug'] ?? ''),
                             'inventory.get' => 'Refreshing inventory',
                             default => $cmd->type,
                         };
-                        $inFlight = $cmd->status === \App\Models\SiteCommand::STATUS_DISPATCHED;
                     @endphp
-                    <div class="plugsent-step {{ $inFlight ? 'plugsent-step-active' : '' }}">
-                        <span class="plugsent-step-icon {{ $inFlight ? 'plugsent-spin' : '' }}">
-                            @if($inFlight)
+                    <div class="plugsent-step plugsent-step-{{ $cmd->status }}">
+                        <span class="plugsent-step-icon plugsent-step-icon-{{ $cmd->status }} {{ $cmd->status === 'dispatched' ? 'plugsent-spin' : '' }}">
+                            @if($cmd->status === 'completed')
+                                <x-filament::icon icon="heroicon-m-check-circle" />
+                            @elseif($cmd->status === 'failed')
+                                <x-filament::icon icon="heroicon-m-x-circle" />
+                            @elseif($cmd->status === 'dispatched')
                                 <x-filament::icon icon="heroicon-m-arrow-path" />
                             @else
                                 <span class="plugsent-step-wait"></span>
                             @endif
                         </span>
                         <span class="plugsent-step-label">
-                            {{ $inFlight ? 'Updating' : 'Waiting for the site' }}
+                            @if($cmd->status === 'completed')
+                                Updated
+                            @elseif($cmd->status === 'failed')
+                                Failed
+                            @elseif($cmd->status === 'dispatched')
+                                Updating
+                            @else
+                                Waiting for the site
+                            @endif
                             <span class="plugsent-step-subject">· {{ $subject }}</span>
                         </span>
                     </div>
                 @endforeach
             </div>
 
-            @if($progress['total'] > 0)
+            @if($batch['total'] > 0)
                 <div class="plugsent-progress">
                     <div class="plugsent-progress-label">
-                        {{ $progress['percent'] }}% — {{ $progress['done'] }} / {{ $progress['total'] }} updated
+                        {{ $batch['percent'] }}% — {{ $batch['done'] }} / {{ $batch['total'] }} updated
                     </div>
                     <div class="plugsent-progress-track">
-                        <div class="plugsent-progress-fill" style="width: {{ max(4, $progress['percent']) }}%"></div>
+                        <div class="plugsent-progress-fill" style="width: {{ max(4, $batch['percent']) }}%"></div>
                     </div>
                 </div>
             @endif

@@ -7,10 +7,11 @@ use App\Models\SiteCommand;
 
 class EnqueueSiteCommand
 {
-    public function __invoke(Site $site, string $type, ?array $payload = null): SiteCommand
+    public function __invoke(Site $site, string $type, ?array $payload = null, ?string $batchId = null): SiteCommand
     {
         return SiteCommand::query()->create([
             'site_id' => $site->getKey(),
+            'batch_id' => $batchId,
             'type' => $type,
             'payload' => $payload,
             'status' => SiteCommand::STATUS_PENDING,

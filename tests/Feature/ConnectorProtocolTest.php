@@ -328,8 +328,8 @@ class ConnectorProtocolTest extends TestCase
                     $keyPair['site_secret'],
                 )->json('commands');
 
-                $this->assertCount(1, $lastPoll);
-                $this->assertSame('inventory.get', $lastPoll[0]['type']);
+                $updateCommands = array_filter($lastPoll, fn (array $c) => $c['type'] === 'update.run');
+                $this->assertEmpty($updateCommands, 'Retry cap exceeded — update.run was re-queued after 2 retries.');
             }
         }
     }

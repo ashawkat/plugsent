@@ -21,8 +21,8 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 
 class ViewSite extends Page implements HasTable
 {
@@ -72,11 +72,12 @@ class ViewSite extends Page implements HasTable
                 ->icon('heroicon-o-rocket-launch')
                 ->color('success')
                 ->requiresConfirmation()
-                ->modalDescription('Each update runs one at a time on the site, and the inventory refreshes automatically after every step.')
+                ->modalDescription('Updates run one at a time on the site and the inventory refreshes automatically when the batch finishes. Watch the live progress panel below.')
                 ->visible(
                     fn (): bool => $this->site->isConnected() && $this->site->pendingUpdatesCount() > 0,
                 )
                 ->action(function (): void {
+                    $batchId = (string) Str::uuid();
                     $items = $this->site->inventory()
                         ->where('update_available', true)
                         ->where('context', '!=', InventoryItem::CONTEXT_CORE)
@@ -88,15 +89,55 @@ class ViewSite extends Page implements HasTable
                             $this->site,
                             'update.run',
                             ['context' => $item->context, 'slug' => $item->slug],
+                            $batchId,
                         );
                     }
 
                     Notification::make()
                         ->title($items->count().' updates queued')
-                        ->body('They run one at a time on the site. Progress appears below live.')
+                        ->body('The site will pick up the whole batch within seconds and run it step by step — live progress below.')
                         ->success()
                         ->send();
                 }),
+        ];
+    }
+
+    /**
+     * The most recent batch of activity (updates + trailing inventory
+     * refresh) from the last 10 minutes, with progress numbers.
+     */
+    public function currentBatch(): ?array
+    {
+        $latest = SiteCommand::query()
+            ->where('site_id', $this->site->getKey())
+            ->whereIn('type', ['update.run', 'inventory.get'])
+            ->where('created_at', '>', now()->subMinutes(10))
+            ->orderBy('id', 'desc')
+            ->first();
+
+        if (! $latest) {
+            return null;
+        }
+
+        $commands = $latest->batch_id
+            ? SiteCommand::query()
+                ->where('batch_id', $latest->batch_id)
+                ->whereIn('type', ['update.run', 'inventory.get'])
+                ->orderBy('id')
+                ->get()
+            : collect([$latest]);
+
+        $updates = $commands->where('type', 'update.run');
+        $done = $updates->whereIn('status', [SiteCommand::STATUS_COMPLETED, SiteCommand::STATUS_FAILED])->count();
+        $total = $updates->count();
+
+        return [
+            'commands' => $commands,
+            'done' => $done,
+            'total' => $total,
+            'percent' => $total > 0 ? (int) round($done * 100 / $total) : 0,
+            'elapsed' => (int) abs(now()->diffInSeconds($commands->first()->created_at)),
+            'finished' => ! $commands->contains(fn (SiteCommand $c) => in_array($c->status, [SiteCommand::STATUS_PENDING, SiteCommand::STATUS_DISPATCHED])),
         ];
     }
 
@@ -141,44 +182,9 @@ class ViewSite extends Page implements HasTable
         };
     }
 
-    /**
-     * Commands currently in flight, newest last (for the progress panel).
-     */
-    public function runningProcesses(): Collection
-    {
-        return SiteCommand::query()
-            ->where('site_id', $this->site->getKey())
-            ->whereIn('type', ['update.run', 'inventory.get'])
-            ->whereIn('status', [SiteCommand::STATUS_PENDING, SiteCommand::STATUS_DISPATCHED])
-            ->where('created_at', '>', now()->subMinutes(10))
-            ->orderBy('id')
-            ->get();
-    }
-
-    public function processProgress(): array
-    {
-        $batch = SiteCommand::query()
-            ->where('site_id', $this->site->getKey())
-            ->where('type', 'update.run')
-            ->where('created_at', '>', now()->subMinutes(10))
-            ->orderBy('id')
-            ->get();
-
-        $done = $batch->whereIn('status', [SiteCommand::STATUS_COMPLETED, SiteCommand::STATUS_FAILED])->count();
-        $total = $batch->count();
-
-        return [
-            'total' => $total,
-            'done' => $done,
-            'percent' => $total > 0 ? (int) round($done * 100 / $total) : 0,
-            'elapsed' => $batch->isEmpty() ? 0 : now()->diffInSeconds($batch->first()->created_at),
-        ];
-    }
-
     public function table(Table $table): Table
     {
         return $table
-            ->poll('3s')
             ->query(
                 InventoryItem::query()->where('site_id', $this->site->getKey()),
             )
@@ -257,6 +263,7 @@ class ViewSite extends Page implements HasTable
                             $this->site,
                             'update.run',
                             ['context' => $record->context, 'slug' => $record->slug],
+                            (string) Str::uuid(),
                         );
 
                         Notification::make()
