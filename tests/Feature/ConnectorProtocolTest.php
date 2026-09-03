@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Actions\EnqueueSiteCommand;
 use App\Actions\IssuePairingCode;
 use App\Models\InventoryItem;
 use App\Models\PairingCode;
@@ -169,6 +170,83 @@ class ConnectorProtocolTest extends TestCase
 
         $this->signedCall('/connector/v1/poll', ['wp_version' => '6.8.0'], $keyPair['site_key'], $keyPair['site_secret'])
             ->assertUnauthorized();
+    }
+
+    public function test_update_run_command_flow_refreshes_inventory(): void
+    {
+        [$site, $keyPair] = $this->pairedSite();
+
+        app(EnqueueSiteCommand::class)(
+            $site,
+            'update.run',
+            ['context' => 'plugin', 'slug' => 'akismet'],
+        );
+
+        // Pairing queued an inventory command; clear it so the next poll
+        // returns exactly the update command under test.
+        SiteCommand::query()->where('site_id', $site->id)->where('type', 'inventory.get')->delete();
+
+        // The site polls and receives exactly the update command.
+        $pollResponse = $this->signedCall(
+            '/connector/v1/poll',
+            ['wp_version' => '6.8.1'],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        );
+        $pollResponse->assertOk()->assertJsonCount(1, 'commands');
+        $command = $pollResponse->json('commands.0');
+        $this->assertSame('update.run', $command['type']);
+        $this->assertSame('akismet', $command['payload']['slug']);
+
+        // The site reports success.
+        $this->signedCall(
+            '/connector/v1/results',
+            ['results' => [[
+                'id' => $command['id'],
+                'status' => 'ok',
+                'data' => ['update' => ['context' => 'plugin', 'slug' => 'akismet', 'ok' => true, 'message' => 'Updated.', 'version' => '5.3.3']],
+            ]]],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        )->assertOk();
+
+        // A follow-up inventory command is automatically queued.
+        $this->assertDatabaseHas('site_commands', [
+            'site_id' => $site->id,
+            'type' => 'inventory.get',
+            'status' => SiteCommand::STATUS_PENDING,
+        ]);
+    }
+
+    public function test_update_run_failures_are_recorded(): void
+    {
+        [$site, $keyPair] = $this->pairedSite();
+
+        app(EnqueueSiteCommand::class)($site, 'update.run', ['context' => 'plugin', 'slug' => 'nope']);
+
+        $pollResponse = $this->signedCall(
+            '/connector/v1/poll',
+            [],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        );
+        $command = $pollResponse->json('commands.0');
+
+        $this->signedCall(
+            '/connector/v1/results',
+            ['results' => [[
+                'id' => $command['id'],
+                'status' => 'failed',
+                'error' => 'Plugin not found.',
+            ]]],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        )->assertOk();
+
+        $this->assertDatabaseHas('site_commands', [
+            'id' => $command['id'],
+            'status' => SiteCommand::STATUS_FAILED,
+        ]);
     }
 
     /**

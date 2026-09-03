@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Connector;
 
+use App\Actions\EnqueueSiteCommand;
 use App\Actions\ProcessInventoryResult;
 use App\Http\Controllers\Controller;
 use App\Models\SiteCommand;
@@ -47,6 +48,12 @@ class ResultsController extends Controller
 
             if ($command->type === 'inventory.get' && $result['status'] === 'ok') {
                 app(ProcessInventoryResult::class)($site, $result['data']['inventory'] ?? []);
+            }
+
+            // After any update, queue a fresh inventory so the dashboard
+            // reflects the new versions on the site's next poll.
+            if ($command->type === 'update.run' && $result['status'] === 'ok') {
+                app(EnqueueSiteCommand::class)($site, 'inventory.get');
             }
 
             $processed++;

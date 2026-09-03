@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable(['workspace_id', 'project_id', 'name', 'url', 'status', 'php_version', 'wp_version', 'last_seen_at', 'tags', 'capabilities'])]
@@ -34,6 +35,16 @@ class Site extends Model
     public function credential(): HasOne
     {
         return $this->hasOne(SiteCredential::class);
+    }
+
+    public function inventory(): HasMany
+    {
+        return $this->hasMany(InventoryItem::class);
+    }
+
+    public function pendingUpdatesCount(): int
+    {
+        return $this->inventory()->where('update_available', true)->count();
     }
 
     public function isConnected(): bool
