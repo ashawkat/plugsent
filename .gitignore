@@ -26,3 +26,6 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 /database/database.sqlite*
+
+# plugin distribution builds
+/plugsent-connector-*.zip
