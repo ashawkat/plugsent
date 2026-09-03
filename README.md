@@ -1,80 +1,145 @@
 <p align="center">
-  <img src="public/logo.svg" width="340" alt="Plugsent">
+  <img src="public/logo.svg" width="300" alt="Plugsent">
 </p>
 
-Self-hosted, open-source WordPress fleet management — an alternative to WP Umbrella /
-ManageWP. Connect WordPress sites, manage plugins/themes/updates, monitor uptime, scan for
-vulnerabilities, organize sites into projects, assign team members, and let coding agents
-operate everything through MCP.
+<p align="center">
+  <strong>Self-hosted, open-source fleet management for WordPress.</strong><br>
+  Connect every site you run — inventory, safe updates, uptime, vulnerabilities, teams, and coding agents via MCP.
+</p>
 
-Read [PLAN.md](./PLAN.md) for the full architecture and roadmap.
+<p align="center">
+  <a href="#license"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/PHP-8.3%2B-777BB4" alt="PHP 8.3+">
+  <img src="https://img.shields.io/badge/Laravel-13-FF2D20" alt="Laravel 13">
+  <a href="https://github.com/ashawkat/plugsent-connector"><img src="https://img.shields.io/badge/connector-GPL--2.0-green" alt="Connector: GPL-2.0"></a>
+</p>
 
-## Status: Phase 1 — connector MVP ✅
+---
 
-Working today:
+Plugsent is an alternative to WP Umbrella and ManageWP that **you host yourself**. Pair your
+WordPress sites with a one-time code, and they check in over an outbound-only, HMAC-signed
+channel — no firewall rules, no inbound ports, and never your WordPress admin password.
 
-- Filament dashboard with **workspace-per-signup tenancy** — every signup creates its own
-  isolated workspace (`workspaces`, slug-based URLs like `/app/betatech/...`)
-- **Projects** and **Sites** resources (CRUD, tenant-scoped, policies enforced)
-- **WordPress connector** (protocol v1): issue a pairing code from the dashboard's
-  **Connect site** page, install `plugins/plugsent-connector` on the WP site, paste the server URL
-  + code — the site then polls your server every minute (outbound-only, HMAC-signed,
-  replay-protected) and reports its full plugin/theme/core inventory
-- Sites flip to **Connected** automatically, with "Refresh inventory" and "Revoke access"
-  actions per site
-- Test the full flow without WordPress: `php scripts/simulate-site.php http://127.0.0.1:8000 <code>`
+## Screenshots
 
-## Requirements
+| | |
+|---|---|
+| ![Plugsent login](docs/screenshots/login.png) | ![Plugsent dashboard](docs/screenshots/dashboard.png) |
 
-- PHP 8.3+ with `pdo_sqlite` (dev) or `pdo_pgsql`
-- Composer
+## Features (working today)
+
+- **Workspace-per-signup tenancy** — every signup gets an isolated workspace with slug URLs
+  (`/app/betatech/…`); invite teammates with workspace and per-project roles.
+- **Projects & Sites** — organize sites into projects, with workspace-scoped authorization on
+  every read and write.
+- **One-click pairing** — generate a 15-minute pairing code from the dashboard, paste it into
+  the [connector plugin](https://github.com/ashawkat/plugsent-connector), done.
+- **Live inventory** — WordPress, plugin, and theme versions with update availability, refreshed
+  on every check-in.
+- **Connector protocol v1** — HMAC-SHA256 signed requests, timestamp tolerance, nonce replay
+  protection, instant revocation, 120 req/min throttling.
+- **Revocable by design** — "Revoke access" kills the site's credentials on its next poll;
+  rotation happens through the signed channel without downtime.
 
 ## Quickstart
 
 ```bash
+git clone --recurse-submodules https://github.com/ashawkat/plugsent.git
+cd plugsent
 composer install
-cp .env.example .env        # sqlite is the default local database
+cp .env.example .env        # SQLite is the default local database
+php artisan key:generate
 php artisan migrate
 php artisan serve
 ```
 
-Then open <http://127.0.0.1:8000/app/register> and sign up — your workspace is created
-automatically and you land inside it.
+Open <http://127.0.0.1:8000/app/register>, sign up, and your workspace is created instantly.
 
-### Using PostgreSQL instead of SQLite
+> Prefer PostgreSQL? `docker compose up -d` starts one on :5432 — see the header of
+> [docker-compose.yml](docker-compose.yml) for the `.env` lines.
+
+### Connect a WordPress site
+
+1. In the dashboard, open **Connect site**, fill in the site's name/URL/project, and copy the
+   pairing code.
+2. On the WordPress site, install the
+   [Plugsent Connector](https://github.com/ashawkat/plugsent-connector) plugin and paste the
+   **Server URL** + code under **Settings → Plugsent Connector**.
+3. The site checks in within a minute and flips to **Connected** with its full inventory.
+
+No WordPress site at hand? Simulate one:
 
 ```bash
-docker compose up -d          # starts postgres:16 on :5432
-# set DB_CONNECTION=pgsql (and credentials) in .env — see docker-compose.yml header
-php artisan migrate
+php scripts/simulate-site.php http://127.0.0.1:8000 <pairing-code>
 ```
 
-## Tests
+## Architecture
+
+```
+┌──────────────────────────────────────────────┐
+│          Plugsent control plane (this repo)  │
+│  Laravel 13 · Filament dashboard · REST API  │
+│  uptime checker · vulnerability cache · RBAC │
+│   ┌──────────────┐  ┌─────────────────────┐  │
+│   │ MCP gateway  │  │  AI layer (BYO LLM) │  │
+│   └──────────────┘  └─────────────────────┘  │
+└──────────▲───────────────────────▲────────────┘
+           │ outbound, HMAC-signed │ MCP tools
+   ┌───────┴──────────┐    ┌───────┴───────────┐
+   │ connector plugin │    │ coding agents     │
+   │ (submodule)      │    │ Claude Code, etc. │
+   └──────────────────┘    └───────────────────┘
+```
+
+- **Sites poll the server — never the reverse**, so sites behind firewalls and staging auth
+  just work.
+- All business logic lives in `app/Actions`; the dashboard, API, and future MCP/mobile clients
+  are thin shells over the same actions.
+- The full architecture, schema, and design decisions live in [PLAN.md](./PLAN.md).
+
+## Roadmap
+
+| Phase | Status | Scope |
+|---|---|---|
+| 0 — Skeleton | ✅ shipped | Laravel + Filament, tenancy, projects/sites, policies |
+| 1 — Connector MVP | ✅ shipped | Pairing, signed poll loop, inventory, connect UI |
+| 2 — Safe updates | planned | Restore point → one plugin at a time → smoke test → auto-rollback |
+| 3 — Safety net | planned | PHP error stream, uptime + incidents, vulnerability feed |
+| 4 — Teams & MCP | planned | Project-level RBAC UI, MCP gateway, consent-gated support access |
+| 5 — AI | planned | Chat over your fleet, update risk summaries, weekly digests |
+| 6 — Mobile | planned | PWA first, then an Expo app on the same API |
+
+## Development
 
 ```bash
-php artisan test
+php artisan test        # 34 tests: protocol, signing, isolation, Plugin Check audit
+vendor/bin/pint         # code style
 ```
 
-The suite covers: signup creating the workspace + owner membership, slug uniqueness,
-cross-workspace isolation (policies + tenant access), rendering of all resource pages,
-signing vectors, **plugin-vs-package signer agreement**, and the full connector protocol
-(pair → poll → results, including tampered/stale/replayed/revoked rejection).
+- `packages/connector-signing` — the protocol v1 signing reference implementation.
+- `plugins/plugsent-connector` — the WordPress plugin (git submodule).
+- `scripts/simulate-site.php` — end-to-end connector simulator, no WordPress needed.
 
-## Connector protocol (v1)
+## Contributing
 
-- Pairing: one-time code (15 min, single-use) → `POST /connector/v1/pair` → site key + secret
-- Ongoing: `POST /connector/v1/poll` and `POST /connector/v1/results`, HMAC-SHA256 signed
-  over `"{timestamp}.{body}"` with ±5 min tolerance and nonce replay protection
-- Shared reference implementation: `packages/connector-signing` (the WP plugin vendors a copy
-  that CI tests against the same vectors)
+PRs are welcome! Please make sure `php artisan test` passes. The connector plugin is GPL-2.0
+and follows the [WordPress Plugin Check](https://wordpress.org/plugins/plugin-check/) rules —
+its static audit runs with the main suite.
 
-## Layout
+## Security
 
-- `app/Actions` — business logic (`CreateWorkspaceForUser`, `IssuePairingCode`,
-  `EnqueueSiteCommand`, `ProcessInventoryResult`)
-- `app/Filament` — dashboard (auth pages, Connect site page, Projects & Sites resources)
-- `app/Http/Controllers/Connector` — pair / poll / results endpoints
-- `app/Http/Middleware/AuthenticateConnector` — HMAC verification + replay protection
-- `packages/connector-signing` — protocol v1 signing reference implementation
-- `plugins/plugsent-connector` — the WordPress connector plugin (author: BetaTech)
-- `scripts/simulate-site.php` — end-to-end connector simulator (no WordPress needed)
+Plugsent pairs sites with per-site key pairs and never stores WordPress admin passwords. If
+you find a vulnerability, please use GitHub's **Report a vulnerability** (Security tab) rather
+than a public issue.
+
+## License
+
+- The Plugsent control plane is licensed under the **MIT License** — see [LICENSE](LICENSE).
+- The WordPress connector plugin is **GPL-2.0-or-later**, as WordPress plugins must be.
+- [Google Sans](https://fonts.google.com/specimen/Google+Sans) is © Google, redistributed under
+  the [SIL Open Font License 1.1](https://openfontlicense.org).
+
+## Acknowledgements
+
+Built on Laravel & Filament. Inspired by the workflows of MainWP, ManageWP, and WP Umbrella —
+with the parts they keep behind a paywall, opened up.
