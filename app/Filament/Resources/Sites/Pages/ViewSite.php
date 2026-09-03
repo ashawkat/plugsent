@@ -4,18 +4,32 @@ namespace App\Filament\Resources\Sites\Pages;
 
 use App\Actions\EnqueueSiteCommand;
 use App\Filament\Resources\Sites\SiteResource;
+use App\Models\InventoryItem;
 use App\Models\Site;
+use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
+use Filament\Schemas\Components\EmbeddedTable;
+use Filament\Schemas\Schema;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Concerns\InteractsWithTable;
+use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TernaryFilter;
+use Filament\Tables\Table;
 use Illuminate\Support\Facades\Gate;
 
-class ViewSite extends Page
+class ViewSite extends Page implements HasTable
 {
+    use InteractsWithTable {
+        makeTable as makeBaseTable;
+    }
+
     protected static string $resource = SiteResource::class;
 
-    public Site $site;
-
     protected string $view = 'filament.resources.sites.view-site';
+
+    public Site $site;
 
     public function mount(Site $record): void
     {
@@ -29,43 +43,107 @@ class ViewSite extends Page
         return $this->site->name;
     }
 
-    public function refreshInventory(): void
+    protected function getHeaderActions(): array
     {
-        Gate::authorize('update', $this->site);
+        return [
+            Action::make('refreshInventory')
+                ->label('Refresh inventory')
+                ->icon('heroicon-o-arrow-path')
+                ->visible(fn (): bool => $this->site->isConnected())
+                ->action(function (): void {
+                    app(EnqueueSiteCommand::class)($this->site, 'inventory.get');
 
-        app(EnqueueSiteCommand::class)($this->site, 'inventory.get');
-
-        Notification::make()
-            ->title('Inventory refresh queued')
-            ->body("{$this->site->name} will report fresh inventory on its next check-in.")
-            ->success()
-            ->send();
+                    Notification::make()
+                        ->title('Inventory refresh queued')
+                        ->body("{$this->site->name} will report fresh inventory on its next check-in.")
+                        ->success()
+                        ->send();
+                }),
+        ];
     }
 
-    public function requestUpdate(string $context, string $slug): void
+    public function table(Table $table): Table
     {
-        Gate::authorize('update', $this->site);
+        return $table
+            ->query(
+                InventoryItem::query()->where('site_id', $this->site->getKey()),
+            )
+            ->defaultSort('name')
+            ->columns([
+                TextColumn::make('name')
+                    ->searchable()
+                    ->sortable()
+                    ->description(fn (InventoryItem $record): ?string => $record->slug),
+                TextColumn::make('context')
+                    ->label('Type')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'plugin' => 'Plugin',
+                        'theme' => 'Theme',
+                        default => 'Core',
+                    }),
+                TextColumn::make('version')
+                    ->label('Installed version'),
+                TextColumn::make('update_version')
+                    ->label('Available update')
+                    ->badge()
+                    ->color('success')
+                    ->placeholder('—'),
+                TextColumn::make('active')
+                    ->label('State')
+                    ->badge()
+                    ->formatStateUsing(fn (bool $state): string => $state ? 'active' : 'inactive')
+                    ->color(fn (bool $state): string => $state ? 'success' : 'gray'),
+            ])
+            ->filters([
+                SelectFilter::make('context')
+                    ->label('Type')
+                    ->options([
+                        'plugin' => 'Plugins',
+                        'theme' => 'Themes',
+                        'core' => 'Core',
+                    ]),
+                TernaryFilter::make('update_available')
+                    ->label('Has update'),
+            ])
+            ->recordActions([
+                Action::make('runUpdate')
+                    ->label('Update')
+                    ->visible(
+                        fn (InventoryItem $record): bool => $record->update_available && $this->site->isConnected(),
+                    )
+                    ->requiresConfirmation(
+                        fn (InventoryItem $record): bool => $record->context === InventoryItem::CONTEXT_CORE,
+                    )
+                    ->modalDescription(
+                        fn (InventoryItem $record): string => $record->context === InventoryItem::CONTEXT_CORE
+                            ? 'Update WordPress core on this site? The site will apply it on its next check-in.'
+                            : "Update {$record->name} on its next check-in? A fresh inventory follows automatically."
+                    )
+                    ->action(function (InventoryItem $record): void {
+                        Gate::authorize('update', $this->site);
 
-        if (! $this->site->isConnected()) {
-            Notification::make()
-                ->title('Site is not connected')
-                ->body('Pair the site first — updates can only run on connected sites.')
-                ->danger()
-                ->send();
+                        app(EnqueueSiteCommand::class)(
+                            $this->site,
+                            'update.run',
+                            ['context' => $record->context, 'slug' => $record->slug],
+                        );
 
-            return;
-        }
+                        Notification::make()
+                            ->title('Update queued')
+                            ->body("\"{$record->name}\" will update on the site's next check-in (within a minute).")
+                            ->success()
+                            ->send();
+                    }),
+            ])
+            ->emptyStateHeading('Nothing reported yet')
+            ->emptyStateDescription('The site sends its inventory on each check-in.');
+    }
 
-        app(EnqueueSiteCommand::class)(
-            $this->site,
-            'update.run',
-            ['context' => $context, 'slug' => $slug],
-        );
-
-        Notification::make()
-            ->title(ucfirst($context).' update queued')
-            ->body("\"{$slug}\" will update on the site's next check-in (within a minute), and the inventory will refresh right after.")
-            ->success()
-            ->send();
+    public function content(Schema $schema): Schema
+    {
+        return $schema->components([
+            EmbeddedTable::make(),
+        ]);
     }
 }
