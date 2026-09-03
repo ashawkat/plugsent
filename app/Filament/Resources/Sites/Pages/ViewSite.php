@@ -8,8 +8,10 @@ use App\Models\InventoryItem;
 use App\Models\Site;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
+use Filament\Resources\Concerns\HasTabs;
 use Filament\Resources\Pages\Page;
 use Filament\Schemas\Components\EmbeddedTable;
+use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
@@ -17,10 +19,12 @@ use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
 
 class ViewSite extends Page implements HasTable
 {
+    use HasTabs;
     use InteractsWithTable {
         makeTable as makeBaseTable;
     }
@@ -68,6 +72,7 @@ class ViewSite extends Page implements HasTable
             ->query(
                 InventoryItem::query()->where('site_id', $this->site->getKey()),
             )
+            ->modifyQueryUsing($this->modifyQueryWithActiveTab(...))
             ->defaultSort('name')
             ->columns([
                 TextColumn::make('name')
@@ -140,9 +145,29 @@ class ViewSite extends Page implements HasTable
             ->emptyStateDescription('The site sends its inventory on each check-in.');
     }
 
+    public function getTabs(): array
+    {
+        $base = InventoryItem::query()->where('site_id', $this->site->getKey());
+
+        return [
+            null => Tab::make('All')
+                ->badge((clone $base)->count()),
+            'plugins' => Tab::make('Plugins')
+                ->badge((clone $base)->where('context', 'plugin')->count())
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('context', 'plugin')),
+            'themes' => Tab::make('Themes')
+                ->badge((clone $base)->where('context', 'theme')->count())
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('context', 'theme')),
+            'core' => Tab::make('WordPress core')
+                ->badge((clone $base)->where('context', 'core')->count())
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('context', 'core')),
+        ];
+    }
+
     public function content(Schema $schema): Schema
     {
         return $schema->components([
+            $this->getTabsContentComponent(),
             EmbeddedTable::make(),
         ]);
     }
