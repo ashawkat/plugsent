@@ -268,6 +268,72 @@ class ConnectorProtocolTest extends TestCase
         $this->assertSame('inventory.get', $response->json('commands.0.type'));
     }
 
+    public function test_unapplied_updates_are_retried_twice(): void
+    {
+        [$site, $keyPair] = $this->pairedSite();
+
+        // Deliver the pairing inventory so the site has data on record.
+        $first = $this->signedCall(
+            '/connector/v1/poll',
+            [],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        )->json('commands');
+        $this->signedCall(
+            '/connector/v1/results',
+            ['results' => array_map(fn (array $c) => [
+                'id' => $c['id'], 'status' => 'ok', 'data' => ['inventory' => $this->sampleInventory()],
+            ], $first)],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        );
+
+        app(EnqueueSiteCommand::class)(
+            $site,
+            'update.run',
+            ['context' => 'plugin', 'slug' => 'flaky'],
+        );
+
+        // Poll -> report "executed but not applied" -> platform re-queues.
+        // The original attempt gets two retries (retry=1 and retry=2).
+        foreach ([0, 1, 2] as $attempt) {
+            $poll = $this->signedCall(
+                '/connector/v1/poll',
+                [],
+                $keyPair['site_key'],
+                $keyPair['site_secret'],
+            )->json('commands');
+
+            $updateCommands = array_values(array_filter($poll, fn (array $c) => $c['type'] === 'update.run'
+                && ($c['payload']['retry'] ?? 0) === $attempt));
+            $this->assertCount(1, $updateCommands, "Expected the attempt-{$attempt} command to be dispatched.");
+
+            $this->signedCall(
+                '/connector/v1/results',
+                ['results' => [[
+                    'id' => $updateCommands[0]['id'],
+                    'status' => 'ok',
+                    'data' => ['update' => ['ok' => false, 'message' => 'Update did not apply.']],
+                ]]],
+                $keyPair['site_key'],
+                $keyPair['site_secret'],
+            )->assertOk();
+
+            if ($attempt === 2) {
+                // Capped: the last attempt must not be re-queued.
+                $lastPoll = $this->signedCall(
+                    '/connector/v1/poll',
+                    [],
+                    $keyPair['site_key'],
+                    $keyPair['site_secret'],
+                )->json('commands');
+
+                $this->assertCount(1, $lastPoll);
+                $this->assertSame('inventory.get', $lastPoll[0]['type']);
+            }
+        }
+    }
+
     public function test_update_run_failures_are_recorded(): void
     {
         [$site, $keyPair] = $this->pairedSite();

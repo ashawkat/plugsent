@@ -56,6 +56,22 @@ class ResultsController extends Controller
                 app(EnqueueSiteCommand::class)($site, 'inventory.get');
             }
 
+            // The command ran but the update did not apply (e.g. the theme
+            // cache was mid-refresh, transient race). Retry a limited number
+            // of times automatically.
+            if ($command->type === 'update.run'
+                && $result['status'] === 'ok'
+                && ($result['data']['update']['ok'] ?? null) === false) {
+                $retry = (int) ($command->payload['retry'] ?? 0);
+
+                if ($retry < 2) {
+                    app(EnqueueSiteCommand::class)($site, 'update.run', array_merge(
+                        $command->payload ?? [],
+                        ['retry' => $retry + 1],
+                    ));
+                }
+            }
+
             $processed++;
         }
 
