@@ -1,4 +1,6 @@
-# Plugsent
+<p align="center">
+  <img src="public/logo.svg" width="340" alt="Plugsent">
+</p>
 
 Self-hosted, open-source WordPress fleet management — an alternative to WP Umbrella /
 ManageWP. Connect WordPress sites, manage plugins/themes/updates, monitor uptime, scan for
