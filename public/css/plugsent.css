@@ -147,3 +147,269 @@ body {
     background: linear-gradient(90deg, #6366f1, #4338ca);
     transition: width 0.5s ease;
 }
+
+/* ---- Categorized inventory sections (site page) ---- */
+
+.plugsent-category {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    margin-top: 18px;
+    overflow: hidden;
+}
+
+.dark .plugsent-category {
+    background: #111827;
+    border-color: #1f2937;
+}
+
+.plugsent-category-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.dark .plugsent-category-head {
+    border-color: #1f2937;
+}
+
+.plugsent-category-head h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.plugsent-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.plugsent-btn:hover {
+    background: #f3f4f6;
+}
+
+.plugsent-btn-primary {
+    background: #4f46e5;
+    border-color: #4f46e5;
+    color: #fff;
+}
+
+.plugsent-btn-primary:hover {
+    background: #4338ca;
+}
+
+.dark .plugsent-btn {
+    background: #1f2937;
+    border-color: #374151;
+    color: #e5e7eb;
+}
+
+.plugsent-table-wrap {
+    overflow-x: auto;
+}
+
+.plugsent-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.plugsent-table th {
+    text-align: left;
+    padding: 10px 18px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #6b7280;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.dark .plugsent-table th {
+    color: #9ca3af;
+    border-color: #1f2937;
+}
+
+.plugsent-table td {
+    padding: 12px 18px;
+    border-bottom: 1px solid #f3f4f6;
+    vertical-align: middle;
+}
+
+.dark .plugsent-table td {
+    border-color: #1f2937;
+}
+
+.plugsent-table tr:last-child td {
+    border-bottom: none;
+}
+
+.plugsent-table tr:hover td {
+    background: rgba(99, 102, 241, 0.04);
+}
+
+.plugsent-item-name {
+    font-weight: 500;
+}
+
+.plugsent-item-slug {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.plugsent-muted {
+    color: #9ca3af;
+}
+
+.plugsent-version-new {
+    color: #16a34a;
+    font-weight: 600;
+}
+
+.plugsent-state {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.plugsent-state-active {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.plugsent-state-inactive {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.dark .plugsent-state-active {
+    background: rgba(34, 197, 94, 0.15);
+}
+
+.dark .plugsent-state-inactive {
+    background: rgba(107, 114, 128, 0.15);
+}
+
+.plugsent-status {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.plugsent-status-pending_update {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.plugsent-status-updating {
+    background: #e0e7ff;
+    color: #4338ca;
+}
+
+.plugsent-status-updated {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.plugsent-status-update_failed {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.dark .plugsent-status-pending_update {
+    background: rgba(245, 158, 11, 0.12);
+}
+
+.dark .plugsent-status-updating {
+    background: rgba(99, 102, 241, 0.15);
+}
+
+.dark .plugsent-status-updated {
+    background: rgba(34, 197, 94, 0.12);
+}
+
+.dark .plugsent-status-update_failed {
+    background: rgba(239, 68, 68, 0.12);
+}
+
+.plugsent-cell-actions {
+    text-align: right;
+}
+
+.plugsent-empty {
+    text-align: center;
+    padding: 28px !important;
+    color: #9ca3af;
+}
+
+/* ---- Process in progress ---- */
+
+.plugsent-process {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(67, 56, 202, 0.05));
+    border: 1px solid #c7d2fe;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+}
+
+.dark .plugsent-process {
+    background: rgba(67, 56, 202, 0.12);
+    border-color: rgba(99, 102, 241, 0.35);
+}
+
+.plugsent-process-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.plugsent-process-head strong {
+    font-size: 15px;
+}
+
+.plugsent-process-elapsed {
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.dark .plugsent-process-elapsed {
+    color: #9ca3af;
+}
+
+.plugsent-process-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 14px;
+}
+
+.plugsent-spin {
+    display: inline-block;
+    color: #4f46e5;
+    animation: plugsent-rotate 1s linear infinite;
+    font-weight: 700;
+}
+
+.plugsent-wait {
+    color: #9ca3af;
+}

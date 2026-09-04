@@ -1,8 +1,12 @@
 <x-filament-panels::page wire:poll.3s>
     @php
         $connected = $this->site->isConnected();
-        $batch = $this->currentBatch();
-        $elapsed = $batch['elapsed'] ?? 0;
+        $running = $this->runningProcesses();
+        $sections = [
+            'plugin' => 'Plugins',
+            'theme' => 'Themes',
+            'core' => 'WordPress core',
+        ];
     @endphp
 
     <div class="plugsent-site-strip">
@@ -24,64 +28,112 @@
         @endif
     </div>
 
-    @if($batch)
-        <x-filament::section class="plugsent-process">
-            <x-slot:heading>
-                {{ $batch['finished'] ? 'Process finished' : 'Process in progress' }}
-            </x-slot:heading>
-            <x-slot:description>
-                Running for {{ $elapsed }}s — {{ $batch['done'] }} / {{ $batch['total'] }} updates done. This page updates itself.
-            </x-slot:description>
-
-            <div class="plugsent-process-steps">
-                @foreach($batch['commands'] as $cmd)
+    @if($running->isNotEmpty())
+        <div class="plugsent-process">
+            <div class="plugsent-process-head">
+                <span class="plugsent-process-spinner"></span>
+                <strong>Process in progress</strong>
+                <span class="plugsent-process-elapsed">
+                    {{ now()->diffInSeconds($running->first()->created_at) }}s
+                </span>
+            </div>
+            <ul class="plugsent-process-steps">
+                @foreach($running as $cmd)
                     @php
                         $subject = match ($cmd->type) {
                             'update.run' => ($cmd->payload['slug'] ?? ''),
                             'inventory.get' => 'Refreshing inventory',
                             default => $cmd->type,
                         };
+                        $inFlight = $cmd->status === \App\Models\SiteCommand::STATUS_DISPATCHED;
                     @endphp
-                    <div class="plugsent-step plugsent-step-{{ $cmd->status }}">
-                        <span class="plugsent-step-icon plugsent-step-icon-{{ $cmd->status }} {{ $cmd->status === 'dispatched' ? 'plugsent-spin' : '' }}">
-                            @if($cmd->status === 'completed')
-                                <x-filament::icon icon="heroicon-m-check-circle" />
-                            @elseif($cmd->status === 'failed')
-                                <x-filament::icon icon="heroicon-m-x-circle" />
-                            @elseif($cmd->status === 'dispatched')
-                                <x-filament::icon icon="heroicon-m-arrow-path" />
-                            @else
-                                <span class="plugsent-step-wait"></span>
-                            @endif
-                        </span>
-                        <span class="plugsent-step-label">
-                            @if($cmd->status === 'completed')
-                                Updated
-                            @elseif($cmd->status === 'failed')
-                                Failed
-                            @elseif($cmd->status === 'dispatched')
-                                Updating
-                            @else
-                                Waiting for the site
-                            @endif
-                            <span class="plugsent-step-subject">· {{ $subject }}</span>
-                        </span>
-                    </div>
+                    <li>
+                        @if($inFlight)
+                            <span class="plugsent-spin">⟳</span> Updating · {{ $subject }}
+                        @else
+                            <span class="plugsent-wait">○</span> Waiting for the site · {{ $subject }}
+                        @endif
+                    </li>
                 @endforeach
-            </div>
-
-            @if($batch['total'] > 0)
-                <div class="plugsent-progress">
-                    <div class="plugsent-progress-label">
-                        {{ $batch['percent'] }}% — {{ $batch['done'] }} / {{ $batch['total'] }} updated
-                    </div>
-                    <div class="plugsent-progress-track">
-                        <div class="plugsent-progress-fill" style="width: {{ max(4, $batch['percent']) }}%"></div>
-                    </div>
-                </div>
-            @endif
-        </x-filament::section>
+            </ul>
+        </div>
     @endif
 
-    {{ $this->content }}
+    @foreach($sections as $context => $label)
+        @php
+            $items = $this->getInventoryFor($context);
+            $pending = $items->where('update_available', true)->count();
+        @endphp
+
+        <div class="plugsent-category">
+            <div class="plugsent-category-head">
+                <h2>{{ $label }}</h2>
+                @if($pending > 0 && $connected)
+                    <button type="button" class="plugsent-btn" wire:click="updateCategory('{{ $context }}')">
+                        Update all ({{ $pending }})
+                    </button>
+                @endif
+            </div>
+
+            <div class="plugsent-table-wrap">
+                <table class="plugsent-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Installed</th>
+                            <th>Available update</th>
+                            <th>Update status</th>
+                            <th>State</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($items as $item)
+                            @php $status = $this->updateStatusFor($item); @endphp
+                            <tr>
+                                <td>
+                                    <div class="plugsent-item-name">{{ $item->name }}</div>
+                                    <div class="plugsent-item-slug">{{ $item->slug }}</div>
+                                </td>
+                                <td>{{ $item->version }}</td>
+                                <td>
+                                    @if($item->update_available)
+                                        <span class="plugsent-version-new">{{ $item->update_version }}</span>
+                                    @else
+                                        <span class="plugsent-muted">—</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($status)
+                                        <span class="plugsent-status plugsent-status-{{ \Illuminate\Support\Str::of($status)->before('…')->slug('_') }}">
+                                            {{ $status }}
+                                        </span>
+                                    @else
+                                        <span class="plugsent-muted">—</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    <span class="plugsent-state plugsent-state-{{ $item->active ? 'active' : 'inactive' }}">
+                                        {{ $item->active ? 'active' : 'inactive' }}
+                                    </span>
+                                </td>
+                                <td class="plugsent-cell-actions">
+                                    @if($connected && $item->update_available && ! $status)
+                                        <button type="button" class="plugsent-btn plugsent-btn-primary"
+                                                wire:click="requestUpdate('{{ $context }}', '{{ $item->slug }}')">
+                                            Update
+                                        </button>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="plugsent-empty">Nothing reported yet — the site sends its inventory on each check-in.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endforeach
 </x-filament-panels::page>

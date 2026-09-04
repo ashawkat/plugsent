@@ -9,35 +9,18 @@ use App\Models\Site;
 use App\Models\SiteCommand;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
-use Filament\Resources\Concerns\HasTabs;
 use Filament\Resources\Pages\Page;
-use Filament\Schemas\Components\EmbeddedTable;
-use Filament\Schemas\Components\Tabs\Tab;
-use Filament\Schemas\Schema;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Concerns\InteractsWithTable;
-use Filament\Tables\Contracts\HasTable;
-use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Filters\TernaryFilter;
-use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
-class ViewSite extends Page implements HasTable
+class ViewSite extends Page
 {
-    use HasTabs;
-    use InteractsWithTable {
-        makeTable as makeBaseTable;
-    }
-
     protected static string $resource = SiteResource::class;
 
     protected string $view = 'filament.resources.sites.view-site';
 
     public Site $site;
-
-    protected ?array $updateStatesCache = null;
 
     public function mount(Site $record): void
     {
@@ -67,78 +50,66 @@ class ViewSite extends Page implements HasTable
                         ->success()
                         ->send();
                 }),
-            Action::make('updateAll')
-                ->label(fn (): string => 'Update all ('.$this->site->pendingUpdatesCount().')')
-                ->icon('heroicon-o-rocket-launch')
-                ->color('success')
-                ->requiresConfirmation()
-                ->modalDescription('Updates run one at a time on the site and the inventory refreshes automatically when the batch finishes. Watch the live progress panel below.')
-                ->visible(
-                    fn (): bool => $this->site->isConnected() && $this->site->pendingUpdatesCount() > 0,
-                )
-                ->action(function (): void {
-                    $batchId = (string) Str::uuid();
-                    $items = $this->site->inventory()
-                        ->where('update_available', true)
-                        ->where('context', '!=', InventoryItem::CONTEXT_CORE)
-                        ->orderBy('id')
-                        ->get();
-
-                    foreach ($items as $item) {
-                        app(EnqueueSiteCommand::class)(
-                            $this->site,
-                            'update.run',
-                            ['context' => $item->context, 'slug' => $item->slug],
-                            $batchId,
-                        );
-                    }
-
-                    Notification::make()
-                        ->title($items->count().' updates queued')
-                        ->body('The site will pick up the whole batch within seconds and run it step by step — live progress below.')
-                        ->success()
-                        ->send();
-                }),
         ];
     }
 
-    /**
-     * The most recent batch of activity (updates + trailing inventory
-     * refresh) from the last 10 minutes, with progress numbers.
-     */
-    public function currentBatch(): ?array
+    public function getInventoryFor(string $context): Collection
     {
-        $latest = SiteCommand::query()
-            ->where('site_id', $this->site->getKey())
-            ->whereIn('type', ['update.run', 'inventory.get'])
-            ->where('created_at', '>', now()->subMinutes(10))
-            ->orderBy('id', 'desc')
-            ->first();
+        return $this->site->inventory()->where('context', $context)->orderBy('name')->get();
+    }
 
-        if (! $latest) {
-            return null;
+    public function pendingCountFor(string $context): int
+    {
+        return $this->getInventoryFor($context)->where('update_available', true)->count();
+    }
+
+    public function updateCategory(string $context): void
+    {
+        Gate::authorize('update', $this->site);
+
+        if (! $this->site->isConnected()) {
+            return;
         }
 
-        $commands = $latest->batch_id
-            ? SiteCommand::query()
-                ->where('batch_id', $latest->batch_id)
-                ->whereIn('type', ['update.run', 'inventory.get'])
-                ->orderBy('id')
-                ->get()
-            : collect([$latest]);
+        $batchId = (string) Str::uuid();
+        $items = $this->getInventoryFor($context)->where('update_available', true);
 
-        $updates = $commands->where('type', 'update.run');
-        $done = $updates->whereIn('status', [SiteCommand::STATUS_COMPLETED, SiteCommand::STATUS_FAILED])->count();
-        $total = $updates->count();
+        foreach ($items as $item) {
+            app(EnqueueSiteCommand::class)(
+                $this->site,
+                'update.run',
+                ['context' => $item->context, 'slug' => $item->slug],
+                $batchId,
+            );
+        }
 
-        return [
-            'commands' => $commands,
-            'done' => $done,
-            'total' => $total,
-            'percent' => $total > 0 ? (int) round($done * 100 / $total) : 0,
-            'elapsed' => (int) abs(now()->diffInSeconds($commands->first()->created_at)),
-            'finished' => ! $commands->contains(fn (SiteCommand $c) => in_array($c->status, [SiteCommand::STATUS_PENDING, SiteCommand::STATUS_DISPATCHED])),
-        ];
+        Notification::make()
+            ->title($items->count().' '.strtolower($context).' updates queued')
+            ->body('They run one at a time on the site — live progress below.')
+            ->success()
+            ->send();
+    }
+
+    public function requestUpdate(string $context, string $slug): void
+    {
+        Gate::authorize('update', $this->site);
+
+        if (! $this->site->isConnected()) {
+            return;
+        }
+
+        app(EnqueueSiteCommand::class)(
+            $this->site,
+            'update.run',
+            ['context' => $context, 'slug' => $slug],
+            (string) Str::uuid(),
+        );
+
+        Notification::make()
+            ->title('Update queued')
+            ->body("\"{$slug}\" will start within seconds — watch the status column.")
+            ->success()
+            ->send();
     }
 
     /**
@@ -148,11 +119,7 @@ class ViewSite extends Page implements HasTable
      */
     public function updateCommandStates(): array
     {
-        if ($this->updateStatesCache !== null) {
-            return $this->updateStatesCache;
-        }
-
-        $commands = SiteCommand::query()
+        return SiteCommand::query()
             ->where('site_id', $this->site->getKey())
             ->where('type', 'update.run')
             ->where('created_at', '>', now()->subMinutes(30))
@@ -160,9 +127,8 @@ class ViewSite extends Page implements HasTable
             ->get()
             ->filter(fn (SiteCommand $command): bool => is_array($command->payload)
                 && isset($command->payload['context'], $command->payload['slug']))
-            ->keyBy(fn (SiteCommand $command): string => $command->payload['context'].'|'.$command->payload['slug']);
-
-        return $this->updateStatesCache = $commands->all();
+            ->keyBy(fn (SiteCommand $command): string => $command->payload['context'].'|'.$command->payload['slug'])
+            ->all();
     }
 
     public function updateStatusFor(InventoryItem $record): ?string
@@ -182,124 +148,14 @@ class ViewSite extends Page implements HasTable
         };
     }
 
-    public function table(Table $table): Table
+    public function runningProcesses(): Collection
     {
-        return $table
-            ->query(
-                InventoryItem::query()->where('site_id', $this->site->getKey()),
-            )
-            ->modifyQueryUsing($this->modifyQueryWithActiveTab(...))
-            ->defaultSort('name')
-            ->columns([
-                TextColumn::make('name')
-                    ->searchable()
-                    ->sortable()
-                    ->description(fn (InventoryItem $record): ?string => $record->slug),
-                TextColumn::make('context')
-                    ->label('Type')
-                    ->badge()
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'plugin' => 'Plugin',
-                        'theme' => 'Theme',
-                        default => 'Core',
-                    }),
-                TextColumn::make('version')
-                    ->label('Installed version'),
-                TextColumn::make('update_version')
-                    ->label('Available update')
-                    ->badge()
-                    ->color('success')
-                    ->placeholder('—'),
-                TextColumn::make('update_status')
-                    ->label('Update status')
-                    ->badge()
-                    ->state(fn (InventoryItem $record): ?string => $this->updateStatusFor($record))
-                    ->color(function (?string $state): string {
-                        return match (true) {
-                            $state === null => 'gray',
-                            str_contains($state, 'Updating') => 'warning',
-                            str_contains($state, 'Pending') => 'gray',
-                            str_contains($state, 'Updated') => 'success',
-                            default => 'danger',
-                        };
-                    }),
-                TextColumn::make('active')
-                    ->label('State')
-                    ->badge()
-                    ->formatStateUsing(fn (bool $state): string => $state ? 'active' : 'inactive')
-                    ->color(fn (bool $state): string => $state ? 'success' : 'gray'),
-            ])
-            ->filters([
-                SelectFilter::make('context')
-                    ->label('Type')
-                    ->options([
-                        'plugin' => 'Plugins',
-                        'theme' => 'Themes',
-                        'core' => 'Core',
-                    ]),
-                TernaryFilter::make('update_available')
-                    ->label('Has update'),
-            ])
-            ->recordActions([
-                Action::make('runUpdate')
-                    ->label('Update')
-                    ->visible(
-                        fn (InventoryItem $record): bool => $record->update_available
-                            && $this->site->isConnected()
-                            && $this->updateStatusFor($record) === null,
-                    )
-                    ->requiresConfirmation(
-                        fn (InventoryItem $record): bool => $record->context === InventoryItem::CONTEXT_CORE,
-                    )
-                    ->modalDescription(
-                        fn (InventoryItem $record): string => $record->context === InventoryItem::CONTEXT_CORE
-                            ? 'Update WordPress core on this site? The site will apply it on its next check-in.'
-                            : "Update {$record->name} on its next check-in? A fresh inventory follows automatically."
-                    )
-                    ->action(function (InventoryItem $record): void {
-                        Gate::authorize('update', $this->site);
-
-                        app(EnqueueSiteCommand::class)(
-                            $this->site,
-                            'update.run',
-                            ['context' => $record->context, 'slug' => $record->slug],
-                            (string) Str::uuid(),
-                        );
-
-                        Notification::make()
-                            ->title('Update queued')
-                            ->body("\"{$record->name}\" will start within seconds — progress appears below.")
-                            ->success()
-                            ->send();
-                    }),
-            ])
-            ->emptyStateHeading('Nothing reported yet')
-            ->emptyStateDescription('The site sends its inventory on each check-in.');
-    }
-
-    public function getTabs(): array
-    {
-        $base = InventoryItem::query()->where('site_id', $this->site->getKey());
-
-        return [
-            null => Tab::make('All')
-                ->badge((clone $base)->count()),
-            'plugins' => Tab::make('Plugins')
-                ->badge((clone $base)->where('context', 'plugin')->count())
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('context', 'plugin')),
-            'themes' => Tab::make('Themes')
-                ->badge((clone $base)->where('context', 'theme')->count())
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('context', 'theme')),
-            'core' => Tab::make('WordPress core')
-                ->badge((clone $base)->where('context', 'core')->count())
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('context', 'core')),
-        ];
-    }
-
-    public function content(Schema $schema): Schema
-    {
-        return $schema->components([
-            EmbeddedTable::make(),
-        ]);
+        return SiteCommand::query()
+            ->where('site_id', $this->site->getKey())
+            ->whereIn('type', ['update.run', 'inventory.get'])
+            ->whereIn('status', [SiteCommand::STATUS_PENDING, SiteCommand::STATUS_DISPATCHED])
+            ->where('created_at', '>', now()->subMinutes(10))
+            ->orderBy('id')
+            ->get();
     }
 }
