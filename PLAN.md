@@ -396,6 +396,15 @@ API-first is the correct core, not an add-on.
 | **5 — AI & polish** | Chat-over-fleet, update risk summaries, digest emails, dark theme + branding, public launch | The "modern + AI" story |
 | **6 — Mobile** | Responsive PWA for on-call checks → Expo (React Native) app on `/api/v1` + push | Plugsent in your pocket |
 
+### Immediate build queue (as prioritized with Adnan)
+
+1. **Admin quick login** — one-click magic login into wp-admin from the dashboard (shipped next).
+2. **Plugin/theme management actions** — activate / deactivate / delete / exclude-from-updates.
+3. **Team** — invitations UI, role management, per-project assignment (audit log becomes meaningful here).
+4. **Uptime monitoring** then **vulnerability feed** (independent of the connector; uses stored inventory).
+5. **Safe-update pipeline** (restore points, smoke tests, rollback) around the existing update buttons.
+6. Later: automation policies, weekly digests, backups integration, MCP + public API packaging.
+
 Suggested sequencing note: keep the connector protocol frozen at v1 from Phase 1 onward and
 extend via new command types — breaking the plugin is the most expensive mistake available.
 

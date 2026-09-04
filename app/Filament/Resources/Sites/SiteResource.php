@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Sites;
 
+use App\Filament\Resources\Sites\Pages\AdminLogin;
 use App\Filament\Resources\Sites\Pages\CreateSite;
 use App\Filament\Resources\Sites\Pages\EditSite;
 use App\Filament\Resources\Sites\Pages\ListSites;
@@ -48,6 +49,7 @@ class SiteResource extends Resource
             'index' => ListSites::route('/'),
             'create' => CreateSite::route('/create'),
             'view' => ViewSite::route('/{record}'),
+            'admin-login' => AdminLogin::route('/{record}/admin-login'),
             'edit' => EditSite::route('/{record}/edit'),
         ];
     }

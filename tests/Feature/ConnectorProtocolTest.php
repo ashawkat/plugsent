@@ -290,6 +290,43 @@ class ConnectorProtocolTest extends TestCase
         $this->assertSame('inventory.get', $response->json('commands.0.type'));
     }
 
+    public function test_admin_login_command_returns_single_use_url(): void
+    {
+        [$site, $keyPair] = $this->pairedSite();
+
+        app(EnqueueSiteCommand::class)($site, 'admin.login');
+
+        $poll = $this->signedCall(
+            '/connector/v1/poll',
+            [],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        )->json('commands');
+
+        $adminCommands = array_values(array_filter($poll, fn (array $c) => $c['type'] === 'admin.login'));
+        $this->assertCount(1, $adminCommands);
+
+        $this->signedCall(
+            '/connector/v1/results',
+            ['results' => [[
+                'id' => $adminCommands[0]['id'],
+                'status' => 'ok',
+                'data' => ['admin_login' => [
+                    'url' => 'https://client-a.test/wp-login.php?plugsent_login=tok',
+                    'user' => 'admin',
+                    'expires_in' => 120,
+                ]],
+            ]]],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        )->assertOk();
+
+        $this->assertDatabaseHas('site_commands', [
+            'id' => $adminCommands[0]['id'],
+            'status' => SiteCommand::STATUS_COMPLETED,
+        ]);
+    }
+
     public function test_unapplied_updates_are_retried_twice(): void
     {
         [$site, $keyPair] = $this->pairedSite();

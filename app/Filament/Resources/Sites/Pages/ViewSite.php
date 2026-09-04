@@ -63,6 +63,12 @@ class ViewSite extends Page
                         ->success()
                         ->send();
                 }),
+            Action::make('openWpAdmin')
+                ->label('Open wp-admin')
+                ->icon('heroicon-o-arrow-top-right-on-square')
+                ->url(fn (): string => SiteResource::getUrl('admin-login', ['record' => $this->site->getKey()]))
+                ->openUrlInNewTab()
+                ->visible(fn (): bool => $this->site->isConnected()),
             Action::make('refreshInventory')
                 ->label('Refresh inventory')
                 ->icon('heroicon-o-arrow-path')

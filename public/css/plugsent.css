@@ -508,3 +508,26 @@ body {
     color: #6b7280;
     margin-top: 10px;
 }
+
+/* ---- Admin login interstitial ---- */
+
+.plugsent-connecting {
+    border: 1px solid #c7d2fe;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(67, 56, 202, 0.05));
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 640px;
+}
+
+.plugsent-process-spinner {
+    display: inline-block;
+    color: #4f46e5;
+    animation: plugsent-rotate 1s linear infinite;
+    font-size: 18px;
+}
+
+.plugsent-process-note {
+    margin: 8px 0 0;
+    font-size: 13.5px;
+    color: #6b7280;
+}
