@@ -9,10 +9,12 @@ use App\Filament\Resources\Projects\Schemas\ProjectForm;
 use App\Filament\Resources\Projects\Tables\ProjectsTable;
 use App\Models\Project;
 use BackedEnum;
+use Filament\Facades\Filament;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class ProjectResource extends Resource
 {
@@ -23,6 +25,27 @@ class ProjectResource extends Resource
     protected static ?string $tenantOwnershipRelationshipName = 'workspace';
 
     protected static ?int $navigationSort = 1;
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        $user = auth()->user();
+        $tenant = Filament::getTenant();
+
+        // Workspace admins/owners see everything. Regular members only see
+        // sites in projects that are open or explicitly assigned to them.
+        if ($user && $tenant && ! $user->isWorkspaceAdmin($tenant)) {
+            $query->whereHas('project', function (Builder $p) {
+                $p->where(function (Builder $q) {
+                    $q->whereDoesntHave('members')
+                        ->orWhereHas('members', fn (Builder $m) => $m->whereKey($user->getKey()));
+                });
+            });
+        }
+
+        return $query;
+    }
 
     public static function form(Schema $schema): Schema
     {

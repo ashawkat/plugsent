@@ -14,7 +14,7 @@ class ProjectPolicy
 
     public function view(User $user, Project $project): bool
     {
-        return $user->belongsToWorkspace($project->workspace);
+        return $user->canAccessProject($project);
     }
 
     public function create(User $user): bool
@@ -24,11 +24,31 @@ class ProjectPolicy
 
     public function update(User $user, Project $project): bool
     {
-        return $user->belongsToWorkspace($project->workspace);
+        return $this->manage($user, $project);
     }
 
     public function delete(User $user, Project $project): bool
     {
-        return $user->belongsToWorkspace($project->workspace);
+        return $this->destroy($user, $project);
+    }
+
+    private function manage(User $user, Project $project): bool
+    {
+        if ($user->isWorkspaceAdmin($project->workspace)) {
+            return true;
+        }
+
+        $role = $user->projectRole($project);
+
+        return in_array($role, ['lead', 'editor'], true);
+    }
+
+    private function destroy(User $user, Project $project): bool
+    {
+        if ($user->isWorkspaceAdmin($project->workspace)) {
+            return true;
+        }
+
+        return $user->projectRole($project) === 'lead';
     }
 }

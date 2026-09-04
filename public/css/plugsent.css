@@ -531,3 +531,51 @@ body {
     font-size: 13.5px;
     color: #6b7280;
 }
+
+/* ---- Team page ---- */
+
+.plugsent-select {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: #374151;
+    font-size: 13px;
+}
+
+.dark .plugsent-select {
+    background: #1f2937;
+    border-color: #374151;
+    color: #e5e7eb;
+}
+
+.plugsent-input {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: #111827;
+    font-size: 14px;
+    min-width: 260px;
+}
+
+.dark .plugsent-input {
+    background: #1f2937;
+    border-color: #374151;
+    color: #e5e7eb;
+}
+
+.plugsent-invite-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 0 18px 18px;
+}
+
+.plugsent-note {
+    font-size: 13px;
+    color: #6b7280;
+    padding: 0 18px 14px;
+    margin: 0;
+}

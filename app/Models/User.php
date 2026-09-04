@@ -61,4 +61,50 @@ class User extends Authenticatable implements FilamentUser, HasTenants
     {
         return $this->workspaces()->whereKey($workspace)->exists();
     }
+
+    public function workspaceRole(Workspace $workspace): ?string
+    {
+        $role = $this->workspaces()
+            ->whereKey($workspace)
+            ->value('workspace_user.role');
+
+        return $role !== null ? (string) $role : null;
+    }
+
+    public function hasWorkspaceRole(Workspace $workspace, array $roles): bool
+    {
+        return in_array($this->workspaceRole($workspace), $roles, true);
+    }
+
+    public function isWorkspaceAdmin(Workspace $workspace): bool
+    {
+        return $this->hasWorkspaceRole($workspace, ['owner', 'admin']);
+    }
+
+    /**
+     * Workspace admins/owners see everything. Regular members see a project
+     * when it has no explicit members (open by default) or when they are
+     * assigned to it.
+     */
+    public function canAccessProject(Project $project): bool
+    {
+        if (! $this->belongsToWorkspace($project->workspace)) {
+            return false;
+        }
+
+        if ($this->isWorkspaceAdmin($project->workspace)) {
+            return true;
+        }
+
+        if ($project->isRestrictedToMembers()) {
+            return $project->members()->whereKey($this->getKey())->exists();
+        }
+
+        return true;
+    }
+
+    public function projectRole(Project $project): ?string
+    {
+        return $project->members()->whereKey($this->getKey())->value('project_user.role');
+    }
 }
