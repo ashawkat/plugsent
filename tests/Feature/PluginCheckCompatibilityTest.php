@@ -154,7 +154,29 @@ class PluginCheckCompatibilityTest extends TestCase
         }
     }
 
-    /**
+    public function test_every_advertised_capability_has_a_dispatch_branch(): void
+    {
+        $class = (string) file_get_contents($this->pluginDir.'/includes/class-plugsent-connector.php');
+
+        preg_match("/'capabilities'\s*=>\s*\[([^\]]+)\]/", $class, $m);
+        $this->assertNotEmpty($m, 'The poll body must advertise its capabilities.');
+
+        $capabilities = array_filter(array_map('trim', explode(',', $m[1])), fn ($c) => str_contains($c, "'"));
+        $this->assertNotEmpty($capabilities, 'At least one capability must be advertised.');
+
+        foreach ($capabilities as $capability) {
+            $name = trim($capability, "' ");
+
+            // Pint enforces non-yoda comparisons: $type === 'capability'
+            $this->assertStringContainsString(
+                "\$type === '{$name}'",
+                $class,
+                "The connector advertises [{$name}] but never dispatches it.",
+            );
+        }
+    }
+
+    /** // placeholder-anchor
      * @return array<string>
      */
     private function pluginFiles(): array
