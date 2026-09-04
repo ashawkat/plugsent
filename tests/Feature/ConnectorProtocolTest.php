@@ -77,6 +77,28 @@ class ConnectorProtocolTest extends TestCase
         )->assertOk()->assertJsonCount(0, 'commands');
     }
 
+    public function test_sites_can_pair_with_their_dashboard_api_key(): void
+    {
+        $site = $this->siteForWorkspace('Alpha');
+        $apiKey = $site->generateApiKey();
+
+        $response = $this->postJson('/connector/v1/pair', [
+            'code' => $apiKey,
+            'site_url' => 'https://client-a.test',
+            'wp_version' => '6.8.0',
+        ]);
+
+        $response->assertCreated();
+        $this->assertArrayHasKey('site_key', $response->json());
+        $this->assertSame('connected', $site->fresh()->status);
+
+        // A wrong API key is rejected.
+        $this->postJson('/connector/v1/pair', [
+            'code' => 'plsk_'.str_repeat('0', 40),
+            'site_url' => 'https://evil.test',
+        ])->assertUnprocessable();
+    }
+
     public function test_pairing_code_is_single_use(): void
     {
         $site = $this->siteForWorkspace('Alpha');

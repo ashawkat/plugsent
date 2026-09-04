@@ -10,6 +10,7 @@ use App\Models\SiteCommand;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
+use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -37,6 +38,31 @@ class ViewSite extends Page
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('apiKey')
+                ->label('API Key')
+                ->icon('heroicon-o-key')
+                ->modalHeading('API key for the WordPress plugin')
+                ->modalDescription('Paste this key into the Plugsent Connector plugin on the site to pair it — no expiry, no one-time code needed.')
+                ->modalContent(function (): View {
+                    return view(
+                        'filament.resources.sites.api-key',
+                        ['key' => $this->site->ensureApiKey()],
+                    );
+                }),
+            Action::make('regenerateApiKey')
+                ->label('Regenerate key')
+                ->icon('heroicon-o-arrow-uturn-left')
+                ->color('gray')
+                ->requiresConfirmation()
+                ->modalDescription('This clears the current API key. Any plugin still holding it will no longer be able to pair. A fresh key is generated next time you open the API Key action.')
+                ->action(function (): void {
+                    $this->site->forceFill(['api_key' => null, 'api_key_hash' => null])->save();
+
+                    Notification::make()
+                        ->title('API key cleared')
+                        ->success()
+                        ->send();
+                }),
             Action::make('refreshInventory')
                 ->label('Refresh inventory')
                 ->icon('heroicon-o-arrow-path')

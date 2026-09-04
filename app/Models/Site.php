@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['workspace_id', 'project_id', 'name', 'url', 'status', 'php_version', 'wp_version', 'last_seen_at', 'tags', 'capabilities'])]
+#[Fillable(['workspace_id', 'project_id', 'name', 'url', 'status', 'php_version', 'wp_version', 'last_seen_at', 'tags', 'capabilities', 'api_key', 'api_key_hash'])]
 class Site extends Model
 {
     protected function casts(): array
@@ -19,6 +19,7 @@ class Site extends Model
             'last_seen_at' => 'datetime',
             'tags' => 'array',
             'capabilities' => 'array',
+            'api_key' => 'encrypted',
         ];
     }
 
@@ -50,6 +51,27 @@ class Site extends Model
     public function isConnected(): bool
     {
         return $this->status === 'connected';
+    }
+
+    public function generateApiKey(): string
+    {
+        $key = 'plsk_'.bin2hex(random_bytes(20));
+
+        $this->forceFill([
+            'api_key' => $key,
+            'api_key_hash' => hash('sha256', $key),
+        ])->save();
+
+        return $key;
+    }
+
+    public function ensureApiKey(): string
+    {
+        if (filled($this->api_key) && filled($this->api_key_hash)) {
+            return $this->api_key;
+        }
+
+        return $this->generateApiKey();
     }
 
     public function markSeen(): void

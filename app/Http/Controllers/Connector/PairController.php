@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Connector;
 use App\Actions\EnqueueSiteCommand;
 use App\Http\Controllers\Controller;
 use App\Models\PairingCode;
+use App\Models\Site;
 use App\Models\SiteCredential;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,17 +25,34 @@ class PairController extends Controller
             'capabilities.*' => ['string'],
         ]);
 
-        $pairingCode = PairingCode::query()
-            ->where('token_hash', Signer::codeHash($validated['code']))
-            ->first();
+        // Two credential types are accepted in the `code` field:
+        //  - a one-time pairing code (PLSG-…), or
+        //  - the site's stable API key (plsk_…) shown in the dashboard.
+        $identifier = trim($validated['code']);
 
-        if ($pairingCode === null || ! $pairingCode->isUsable()) {
-            return response()->json([
-                'message' => 'Pairing code is invalid, expired, or already used.',
-            ], 422);
+        if (str_starts_with(mb_strtoupper($identifier), 'PLSG-')) {
+            $pairingCode = PairingCode::query()
+                ->where('token_hash', Signer::codeHash($identifier))
+                ->first();
+
+            if ($pairingCode === null || ! $pairingCode->isUsable()) {
+                return response()->json([
+                    'message' => 'Pairing code is invalid, expired, or already used.',
+                ], 422);
+            }
+
+            $site = $pairingCode->site;
+        } else {
+            $site = Site::query()
+                ->where('api_key_hash', hash('sha256', $identifier))
+                ->first();
+
+            if ($site === null) {
+                return response()->json([
+                    'message' => 'API key is invalid or belongs to no known site.',
+                ], 422);
+            }
         }
-
-        $site = $pairingCode->site;
 
         $keyPair = Signer::generateKeyPair();
 
@@ -55,7 +73,9 @@ class PairController extends Controller
             'capabilities' => $validated['capabilities'] ?? null,
         ])->save();
 
-        $pairingCode->forceFill(['used_at' => now()])->save();
+        if (isset($pairingCode)) {
+            $pairingCode->forceFill(['used_at' => now()])->save();
+        }
 
         app(EnqueueSiteCommand::class)($site, 'inventory.get');
 
