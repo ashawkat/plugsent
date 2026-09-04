@@ -398,6 +398,15 @@ API-first is the correct core, not an add-on.
 
 ### Immediate build queue (as prioritized with Adnan)
 
+1. ~~**Admin quick login**~~ — shipped (connector 0.7.0+).
+2. ~~**Team**~~ — shipped: email invitations, roles (owner/admin/member), member management, per-project membership (lead/editor/viewer) with enforced access.
+3. **Plugin/theme management actions** — activate / deactivate / delete / exclude-from-updates (next).
+4. **Safe-update pipeline** — restore points, smoke tests, rollback.
+5. **Uptime monitoring** then **vulnerability feed**.
+6. Later: automation policies, digests, backups integration, MCP + public API packaging.
+
+
+
 1. **Admin quick login** — one-click magic login into wp-admin from the dashboard (shipped next).
 2. **Plugin/theme management actions** — activate / deactivate / delete / exclude-from-updates.
 3. **Team** — invitations UI, role management, per-project assignment (audit log becomes meaningful here).
