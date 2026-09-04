@@ -46,7 +46,7 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::HEAD_END,
                 fn (): Htmlable => new HtmlString(
                     '<link rel="preload" href="/fonts/google-sans-latin.woff2" as="font" type="font/woff2" crossorigin>'
-                   .'<link rel="stylesheet" href="'.asset('css/plugsent.css').'">'
+                   .'<link rel="stylesheet" href="'.asset('css/plugsent.css').'?v='.filemtime(public_path('css/plugsent.css')).'">'
                 ),
             )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
