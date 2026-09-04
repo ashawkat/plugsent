@@ -43,6 +43,33 @@ class Site extends Model
         return $this->hasMany(InventoryItem::class);
     }
 
+    public function updateExclusions(): HasMany
+    {
+        return $this->hasMany(UpdateExclusion::class);
+    }
+
+    /**
+     * Whether updates for this inventory item are excluded on the platform
+     * side (no Update button, skipped by "Update all").
+     */
+    public function isExcludedFromUpdates(string $context, string $slug): bool
+    {
+        return $this->updateExclusions()
+            ->where('context', $context)
+            ->where('slug', $slug)
+            ->exists();
+    }
+
+    /**
+     * Whether the site's connector advertises this command capability.
+     * Capabilities are refreshed on every poll, so sites running an old
+     * connector keep unsupported actions out of the UI automatically.
+     */
+    public function supportsCommand(string $type): bool
+    {
+        return in_array($type, (array) ($this->capabilities ?? []), true);
+    }
+
     public function pendingUpdatesCount(): int
     {
         return $this->inventory()->where('update_available', true)->count();

@@ -56,7 +56,7 @@ if ($pairingCode !== null) {
         'name' => 'Client A',
         'wp_version' => '6.8.1',
         'php_version' => '8.2.0',
-        'capabilities' => ['inventory.get'],
+        'capabilities' => ['inventory.get', 'update.run', 'admin.login', 'plugin.activate', 'plugin.deactivate', 'plugin.delete', 'theme.activate', 'theme.delete'],
     ]);
 
     if ($status !== 201) {
@@ -92,7 +92,7 @@ foreach ([1, 2] as $cycle) {
     [$status, $payload] = http_post($server.'/connector/v1/poll', [
         'wp_version' => '6.8.1',
         'php_version' => '8.2.0',
-        'capabilities' => ['inventory.get'],
+        'capabilities' => ['inventory.get', 'update.run', 'admin.login', 'plugin.activate', 'plugin.deactivate', 'plugin.delete', 'theme.activate', 'theme.delete'],
         'health' => ['status' => 'ok'],
     ], $key, $secret);
 

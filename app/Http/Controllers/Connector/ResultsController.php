@@ -11,6 +11,20 @@ use Illuminate\Http\Request;
 
 class ResultsController extends Controller
 {
+    /**
+     * Command types that change plugin/theme state on the site; when the
+     * batch holding one finishes, a fresh inventory is queued so the
+     * dashboard reflects new versions and active flags.
+     */
+    private const STATE_CHANGING_TYPES = [
+        'update.run',
+        'plugin.activate',
+        'plugin.deactivate',
+        'plugin.delete',
+        'theme.activate',
+        'theme.delete',
+    ];
+
     public function __invoke(Request $request): JsonResponse
     {
         $site = $request->attributes->get('connector.site');
@@ -50,10 +64,10 @@ class ResultsController extends Controller
                 app(ProcessInventoryResult::class)($site, $result['data']['inventory'] ?? []);
             }
 
-            // After any update, queue a fresh inventory so the dashboard
-            // reflects the new versions — but only once per batch, when the
+            // After any state-changing command (update or management action),
+            // queue a fresh inventory — but only once per batch, when the
             // whole batch has finished (no more pending/dispatched commands).
-            if ($command->type === 'update.run') {
+            if (in_array($command->type, self::STATE_CHANGING_TYPES, true)) {
                 $batchOutstanding = SiteCommand::query()
                     ->where('site_id', $site->getKey())
                     ->where('batch_id', $command->batch_id)

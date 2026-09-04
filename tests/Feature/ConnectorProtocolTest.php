@@ -254,6 +254,106 @@ class ConnectorProtocolTest extends TestCase
         ]);
     }
 
+    public function test_management_action_flow_refreshes_inventory_without_retry(): void
+    {
+        [$site, $keyPair] = $this->pairedSite();
+
+        // Deliver the pairing-time inventory so the self-heal stays quiet.
+        $first = $this->signedCall(
+            '/connector/v1/poll',
+            ['wp_version' => '6.8.1'],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        )->json('commands');
+        $this->signedCall(
+            '/connector/v1/results',
+            ['results' => array_map(fn (array $c) => [
+                'id' => $c['id'], 'status' => 'ok', 'data' => ['inventory' => $this->sampleInventory()],
+            ], $first)],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        );
+
+        // Queue a management action.
+        app(EnqueueSiteCommand::class)(
+            $site,
+            'plugin.activate',
+            ['context' => 'plugin', 'slug' => 'hello'],
+        );
+
+        // The site polls and receives exactly the action command.
+        $pollResponse = $this->signedCall(
+            '/connector/v1/poll',
+            ['wp_version' => '6.8.1'],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        );
+        $pollResponse->assertOk()->assertJsonCount(1, 'commands');
+        $command = $pollResponse->json('commands.0');
+        $this->assertSame('plugin.activate', $command['type']);
+        $this->assertSame('plugin', $command['payload']['context']);
+        $this->assertSame('hello', $command['payload']['slug']);
+
+        // The site reports a successful action.
+        $this->signedCall(
+            '/connector/v1/results',
+            ['results' => [[
+                'id' => $command['id'],
+                'status' => 'ok',
+                'data' => ['action' => ['context' => 'plugin', 'slug' => 'hello', 'ok' => true, 'message' => 'Activated.']],
+            ]]],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        )->assertOk();
+
+        $this->assertSame(
+            SiteCommand::STATUS_COMPLETED,
+            SiteCommand::query()->find($command['id'])->status,
+        );
+
+        // The finished action batch automatically queues an inventory refresh.
+        $this->assertDatabaseHas('site_commands', [
+            'site_id' => $site->id,
+            'type' => 'inventory.get',
+            'status' => SiteCommand::STATUS_PENDING,
+        ]);
+
+        // A refused action ("ok" execution, ok:false outcome) is final:
+        // management commands are never retried automatically.
+        app(EnqueueSiteCommand::class)(
+            $site,
+            'plugin.delete',
+            ['context' => 'plugin', 'slug' => 'akismet'],
+        );
+
+        $poll = $this->signedCall(
+            '/connector/v1/poll',
+            ['wp_version' => '6.8.1'],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        )->json('commands');
+        $this->assertCount(2, $poll); // the queued inventory refresh + the delete
+
+        $this->signedCall(
+            '/connector/v1/results',
+            ['results' => array_map(fn (array $c) => $c['type'] === 'inventory.get'
+                ? ['id' => $c['id'], 'status' => 'ok', 'data' => ['inventory' => $this->sampleInventory()]]
+                : [
+                    'id' => $c['id'],
+                    'status' => 'ok',
+                    'data' => ['action' => ['context' => 'plugin', 'slug' => 'akismet', 'ok' => false, 'message' => 'Deactivate the plugin before deleting it.']],
+                ], $poll)],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        )->assertOk();
+
+        $this->assertSame(
+            1,
+            SiteCommand::query()->where('site_id', $site->id)->where('type', 'plugin.delete')->count(),
+            'A refused management action must not be retried.',
+        );
+    }
+
     public function test_connected_site_with_empty_inventory_is_asked_for_it(): void
     {
         [$site, $keyPair] = $this->pairedSite();

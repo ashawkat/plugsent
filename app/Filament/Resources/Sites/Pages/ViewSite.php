@@ -7,6 +7,7 @@ use App\Filament\Resources\Sites\SiteResource;
 use App\Models\InventoryItem;
 use App\Models\Site;
 use App\Models\SiteCommand;
+use App\Models\UpdateExclusion;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
@@ -20,6 +21,61 @@ class ViewSite extends Page
     protected static string $resource = SiteResource::class;
 
     protected string $view = 'filament.resources.sites.view-site';
+
+    /**
+     * Remote management commands the page can dispatch. Destructive ones
+     * require the site's "delete" ability, not just "update".
+     */
+    private const MANAGE_ACTION_TYPES = [
+        'plugin.activate',
+        'plugin.deactivate',
+        'plugin.delete',
+        'theme.activate',
+        'theme.delete',
+    ];
+
+    private const DESTRUCTIVE_ACTION_TYPES = [
+        'plugin.delete',
+        'theme.delete',
+    ];
+
+    /**
+     * Status-cell labels per action type and command status.
+     *
+     * @var array<string, array{queued: string, progress: string, done: string, failed: string}>
+     */
+    private const ACTION_LABELS = [
+        'plugin.activate' => [
+            'queued' => 'Pending activation…',
+            'progress' => 'Activating…',
+            'done' => 'Activated ✓',
+            'failed' => 'Activation failed',
+        ],
+        'plugin.deactivate' => [
+            'queued' => 'Pending deactivation…',
+            'progress' => 'Deactivating…',
+            'done' => 'Deactivated ✓',
+            'failed' => 'Deactivation failed',
+        ],
+        'plugin.delete' => [
+            'queued' => 'Pending deletion…',
+            'progress' => 'Deleting…',
+            'done' => 'Deleted ✓',
+            'failed' => 'Delete failed',
+        ],
+        'theme.activate' => [
+            'queued' => 'Pending switch…',
+            'progress' => 'Switching theme…',
+            'done' => 'Switched ✓',
+            'failed' => 'Theme switch failed',
+        ],
+        'theme.delete' => [
+            'queued' => 'Pending deletion…',
+            'progress' => 'Deleting…',
+            'done' => 'Deleted ✓',
+            'failed' => 'Delete failed',
+        ],
+    ];
 
     public Site $site;
 
@@ -103,8 +159,26 @@ class ViewSite extends Page
             return;
         }
 
+        $excluded = $this->excludedKeys();
+        $all = $this->getInventoryFor($context)->where('update_available', true);
+        $items = $all->reject(
+            fn (InventoryItem $item): bool => in_array($item->context.'|'.$item->slug, $excluded, true),
+        );
+        $skipped = $all->count() - $items->count();
+
+        if ($items->isEmpty()) {
+            Notification::make()
+                ->title('Nothing to update')
+                ->body($skipped > 0
+                    ? "Every available {$context} update is excluded from updates."
+                    : "No {$context} updates are available.")
+                ->warning()
+                ->send();
+
+            return;
+        }
+
         $batchId = (string) Str::uuid();
-        $items = $this->getInventoryFor($context)->where('update_available', true);
 
         foreach ($items as $item) {
             app(EnqueueSiteCommand::class)(
@@ -117,9 +191,99 @@ class ViewSite extends Page
 
         Notification::make()
             ->title($items->count().' '.strtolower($context).' updates queued')
-            ->body('They run one at a time on the site — live progress below.')
+            ->body(trim(($skipped > 0 ? $skipped.' excluded item(s) skipped. ' : '')
+                .'They run one at a time on the site — live progress below.'))
             ->success()
             ->send();
+    }
+
+    /**
+     * Queue a remote management command (activate/deactivate/delete/switch).
+     * One command per batch, so a fresh inventory follows its completion.
+     */
+    public function requestAction(string $type, string $slug): void
+    {
+        if (! in_array($type, self::MANAGE_ACTION_TYPES, true)) {
+            return;
+        }
+
+        Gate::authorize(
+            in_array($type, self::DESTRUCTIVE_ACTION_TYPES, true) ? 'delete' : 'update',
+            $this->site,
+        );
+
+        if (! $this->site->isConnected() || ! $this->site->supportsCommand($type)) {
+            return;
+        }
+
+        app(EnqueueSiteCommand::class)($this->site, $type, [
+            'context' => Str::before($type, '.'),
+            'slug' => $slug,
+        ], (string) Str::uuid());
+
+        $verbs = [
+            'plugin.activate' => 'Activation of',
+            'plugin.deactivate' => 'Deactivation of',
+            'plugin.delete' => 'Deletion of',
+            'theme.activate' => 'Theme switch to',
+            'theme.delete' => 'Deletion of theme',
+        ];
+
+        Notification::make()
+            ->title('Action queued')
+            ->body(($verbs[$type] ?? 'Action on')." \"{$slug}\" starts within seconds"
+                .(in_array($type, self::DESTRUCTIVE_ACTION_TYPES, true) ? ' — this cannot be undone.' : ' — watch the status column.'))
+            ->success()
+            ->send();
+    }
+
+    public function toggleUpdateExclusion(string $context, string $slug): void
+    {
+        Gate::authorize('update', $this->site);
+
+        $existing = UpdateExclusion::query()
+            ->where('site_id', $this->site->getKey())
+            ->where('context', $context)
+            ->where('slug', $slug)
+            ->first();
+
+        if ($existing !== null) {
+            $existing->delete();
+
+            Notification::make()
+                ->title('Included in updates')
+                ->body("\"{$slug}\" is eligible for updates again.")
+                ->success()
+                ->send();
+
+            return;
+        }
+
+        UpdateExclusion::query()->create([
+            'site_id' => $this->site->getKey(),
+            'context' => $context,
+            'slug' => $slug,
+            'created_at' => now(),
+        ]);
+
+        Notification::make()
+            ->title('Excluded from updates')
+            ->body("\"{$slug}\" will no longer appear in update queues.")
+            ->success()
+            ->send();
+    }
+
+    /**
+     * Slugs excluded from updates, keyed `context|slug`.
+     *
+     * @return array<int, string>
+     */
+    public function excludedKeys(): array
+    {
+        return $this->site->updateExclusions()
+            ->get()
+            ->map(fn (UpdateExclusion $exclusion): string => $exclusion->context.'|'.$exclusion->slug)
+            ->all();
     }
 
     public function requestUpdate(string $context, string $slug): void
@@ -145,30 +309,47 @@ class ViewSite extends Page
     }
 
     /**
-     * Latest update.run command state per context|slug (last 30 minutes).
+     * Latest update/management command state per context|slug (last 30
+     * minutes). keyBy keeps the newest command when one slug was hit twice.
      *
      * @return array<string, SiteCommand>
      */
-    public function updateCommandStates(): array
+    public function commandStates(): array
     {
         return SiteCommand::query()
             ->where('site_id', $this->site->getKey())
-            ->where('type', 'update.run')
+            ->whereIn('type', ['update.run', ...self::MANAGE_ACTION_TYPES])
             ->where('created_at', '>', now()->subMinutes(30))
             ->orderBy('id')
             ->get()
             ->filter(fn (SiteCommand $command): bool => is_array($command->payload)
                 && isset($command->payload['context'], $command->payload['slug']))
-            ->keyBy(fn (SiteCommand $command): string => $command->payload['context'].'|'.$command->payload['slug'])
+            ->keyBy(function (SiteCommand $command): string {
+                $payload = $command->payload ?? [];
+
+                return ($payload['context'] ?? '?').'|'.($payload['slug'] ?? '?');
+            })
             ->all();
     }
 
-    public function updateStatusFor(InventoryItem $record): ?string
+    public function statusFor(InventoryItem $record): ?string
     {
-        $command = $this->updateCommandStates()[$record->context.'|'.$record->slug] ?? null;
+        $command = $this->commandStates()[$record->context.'|'.$record->slug] ?? null;
 
         if ($command === null || $command->created_at->lt(now()->subMinutes(30))) {
             return null;
+        }
+
+        $labels = self::ACTION_LABELS[$command->type] ?? null;
+
+        if ($labels !== null) {
+            return match ($command->status) {
+                SiteCommand::STATUS_PENDING => $labels['queued'],
+                SiteCommand::STATUS_DISPATCHED => $labels['progress'],
+                SiteCommand::STATUS_COMPLETED => $labels['done'],
+                SiteCommand::STATUS_FAILED => $labels['failed'],
+                default => null,
+            };
         }
 
         return match ($command->status) {
@@ -184,10 +365,29 @@ class ViewSite extends Page
     {
         return SiteCommand::query()
             ->where('site_id', $this->site->getKey())
-            ->whereIn('type', ['update.run', 'inventory.get'])
+            ->whereIn('type', ['update.run', 'inventory.get', ...self::MANAGE_ACTION_TYPES])
             ->whereIn('status', [SiteCommand::STATUS_PENDING, SiteCommand::STATUS_DISPATCHED])
             ->where('created_at', '>', now()->subMinutes(10))
             ->orderBy('id')
             ->get();
+    }
+
+    /**
+     * Human description of an in-flight command for the progress widget.
+     */
+    public function processSubject(SiteCommand $command): string
+    {
+        $slug = (string) ($command->payload['slug'] ?? '');
+
+        return match ($command->type) {
+            'update.run' => 'Updating · '.$slug,
+            'inventory.get' => 'Refreshing inventory',
+            'plugin.activate' => 'Activating · '.$slug,
+            'plugin.deactivate' => 'Deactivating · '.$slug,
+            'plugin.delete' => 'Deleting plugin · '.$slug,
+            'theme.activate' => 'Switching theme · '.$slug,
+            'theme.delete' => 'Deleting theme · '.$slug,
+            default => $command->type,
+        };
     }
 }

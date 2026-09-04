@@ -39,25 +39,22 @@
             </div>
             <ul class="plugsent-process-steps">
                 @foreach($running as $cmd)
-                    @php
-                        $subject = match ($cmd->type) {
-                            'update.run' => ($cmd->payload['slug'] ?? ''),
-                            'inventory.get' => 'Refreshing inventory',
-                            default => $cmd->type,
-                        };
-                        $inFlight = $cmd->status === \App\Models\SiteCommand::STATUS_DISPATCHED;
-                    @endphp
+                    @php $inFlight = $cmd->status === \App\Models\SiteCommand::STATUS_DISPATCHED; @endphp
                     <li>
                         @if($inFlight)
-                            <span class="plugsent-spin">⟳</span> Updating · {{ $subject }}
+                            <span class="plugsent-spin">⟳</span> {{ $this->processSubject($cmd) }}
                         @else
-                            <span class="plugsent-wait">○</span> Waiting for the site · {{ $subject }}
+                            <span class="plugsent-wait">○</span> Waiting for the site · {{ $this->processSubject($cmd) }}
                         @endif
                     </li>
                 @endforeach
             </ul>
         </div>
     @endif
+
+    @php
+        $excluded = $this->excludedKeys();
+    @endphp
 
     @foreach($sections as $context => $label)
         @php
@@ -89,7 +86,12 @@
                     </thead>
                     <tbody>
                         @forelse($items as $item)
-                            @php $status = $this->updateStatusFor($item); @endphp
+                            @php
+                                $status = $this->statusFor($item);
+                                $isExcluded = in_array($context.'|'.$item->slug, $excluded, true);
+                                $manageable = $connected && $context !== 'core' && ! $status
+                                    && $item->slug !== 'plugsent-connector';
+                            @endphp
                             <tr>
                                 <td>
                                     <div class="plugsent-item-name">{{ $item->name }}</div>
@@ -118,11 +120,58 @@
                                     </span>
                                 </td>
                                 <td class="plugsent-cell-actions">
-                                    @if($connected && $item->update_available && ! $status)
+                                    @if($connected && $item->update_available && ! $status && ! $isExcluded)
                                         <button type="button" class="plugsent-btn plugsent-btn-primary"
                                                 wire:click="requestUpdate('{{ $context }}', '{{ $item->slug }}')">
                                             Update
                                         </button>
+                                    @endif
+
+                                    @if($manageable && $context === 'plugin')
+                                        @if($this->site->supportsCommand('plugin.activate'))
+                                            @if($item->active)
+                                                <button type="button" class="plugsent-btn"
+                                                        wire:click="requestAction('plugin.deactivate', '{{ $item->slug }}')">
+                                                    Deactivate
+                                                </button>
+                                            @else
+                                                <button type="button" class="plugsent-btn"
+                                                        wire:click="requestAction('plugin.activate', '{{ $item->slug }}')">
+                                                    Activate
+                                                </button>
+                                            @endif
+                                        @endif
+                                        @if($this->site->supportsCommand('plugin.delete'))
+                                            <button type="button" class="plugsent-btn"
+                                                    wire:click="requestAction('plugin.delete', '{{ $item->slug }}')"
+                                                    wire:confirm="Delete {{ $item->name }} from {{ $this->site->name }}? This permanently removes its files from the site.">
+                                                Delete
+                                            </button>
+                                        @endif
+                                    @elseif($manageable && $context === 'theme')
+                                        @if(! $item->active && $this->site->supportsCommand('theme.activate'))
+                                            <button type="button" class="plugsent-btn"
+                                                    wire:click="requestAction('theme.activate', '{{ $item->slug }}')">
+                                                Activate
+                                            </button>
+                                        @endif
+                                        @if(! $item->active && $this->site->supportsCommand('theme.delete'))
+                                            <button type="button" class="plugsent-btn"
+                                                    wire:click="requestAction('theme.delete', '{{ $item->slug }}')"
+                                                    wire:confirm="Delete the {{ $item->name }} theme from {{ $this->site->name }}? This permanently removes its files from the site.">
+                                                Delete
+                                            </button>
+                                        @endif
+                                    @endif
+
+                                    @if($connected && $context !== 'core')
+                                        <button type="button" class="plugsent-btn"
+                                                wire:click="toggleUpdateExclusion('{{ $context }}', '{{ $item->slug }}')">
+                                            {{ $isExcluded ? 'Include updates' : 'Exclude updates' }}
+                                        </button>
+                                        @if($isExcluded)
+                                            <span class="plugsent-state plugsent-state-inactive">excluded</span>
+                                        @endif
                                     @endif
                                 </td>
                             </tr>
