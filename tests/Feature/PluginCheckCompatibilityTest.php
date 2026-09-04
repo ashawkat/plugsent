@@ -136,6 +136,16 @@ class PluginCheckCompatibilityTest extends TestCase
         }
     }
 
+    public function test_login_tokens_are_database_backed_not_transient(): void
+    {
+        // Transients on object-cached sites are volatile - a login token must
+        // never evaporate before use (the WP Umbrella-parity guarantee).
+        $class = (string) file_get_contents($this->pluginDir.'/includes/class-plugsent-connector.php');
+
+        $this->assertStringContainsString("update_option('plugsent_login_token'", $class);
+        $this->assertStringNotContainsString("set_transient('plugsent_login_", $class);
+    }
+
     public function test_plugin_header_is_complete(): void
     {
         $main = (string) file_get_contents($this->pluginDir.'/plugsent-connector.php');
