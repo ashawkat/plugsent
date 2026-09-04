@@ -18,6 +18,10 @@ class AdminLogin extends Page
 
     public Site $site;
 
+    public ?string $error = null;
+
+    public bool $enqueued = false;
+
     public function mount(Site $record): void
     {
         Gate::authorize('update', $record);
@@ -35,12 +39,34 @@ class AdminLogin extends Page
 
         $this->site = $record;
 
+        // Older connectors reject admin.login as unsupported — surface that
+        // immediately instead of letting the page spin.
+        $caps = $record->capabilities;
+
+        if (is_array($caps) && ! in_array('admin.login', $caps)) {
+            $this->error = 'This site is running an outdated connector. Update the Plugsent Connector plugin on the site to 0.7.0 or newer, then retry.';
+
+            return;
+        }
+
+        $this->enqueue();
+    }
+
+    public function enqueue(): void
+    {
+        Gate::authorize('update', $this->site);
+
         app(EnqueueSiteCommand::class)($this->site, 'admin.login');
+
+        $this->error = null;
+        $this->enqueued = true;
     }
 
     public function getTitle(): string
     {
-        return 'Connecting to '.$this->site->name;
+        return $this->error
+            ? 'Could not open WordPress admin'
+            : 'Connecting to '.$this->site->name;
     }
 
     /**
@@ -55,14 +81,32 @@ class AdminLogin extends Page
             ->orderBy('id', 'desc')
             ->first();
 
-        if (! $command || $command->status !== SiteCommand::STATUS_COMPLETED) {
+        if (! $command) {
             return;
         }
 
-        $url = $command->result['data']['admin_login']['url'] ?? null;
+        if ($command->status === SiteCommand::STATUS_COMPLETED) {
+            $url = $command->result['data']['admin_login']['url'] ?? null;
 
-        if (filled($url)) {
-            $this->redirect($url);
+            if (filled($url)) {
+                $this->redirect($url);
+            }
+
+            return;
+        }
+
+        if ($command->status === SiteCommand::STATUS_FAILED) {
+            $this->error = 'The site rejected the login request: '
+                .($command->result['error'] ?? 'unknown error')
+                .' — update the connector on the site to 0.7.0+ and retry.';
+
+            return;
+        }
+
+        // No answer within 60s of queueing: treat as unreachable.
+        if ($command->created_at->lt(now()->subSeconds(60))
+            && $command->status !== SiteCommand::STATUS_COMPLETED) {
+            $this->error = 'The site did not answer in time. Check that it is online and running connector 0.7.0+, then retry.';
         }
     }
 }

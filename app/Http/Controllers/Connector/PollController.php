@@ -20,14 +20,19 @@ class PollController extends Controller
             'wp_version' => $request->input('wp_version') ?? $site->wp_version,
             'php_version' => $request->input('php_version') ?? $site->php_version,
             'capabilities' => $request->input('capabilities') ?? $site->capabilities,
+            'connector_version' => $request->input('version') ?? $site->connector_version,
         ]);
         $site->markSeen();
 
         $this->maybeSelfHealInventory($site);
 
-        // Long-polling: hold the request open (up to a configurable limit)
-        // until a command arrives, so dashboard actions feel instant.
-        $waitUntil = now()->addSeconds(max(0, min((int) config('plugsent.long_poll_seconds', 25), 30)));
+        // Long-polling is OPT-IN: connectors newer than 0.5.0 send `wait`
+        // (their HTTP timeout is 45s). Older connectors abort at 15s, so
+        // for them we answer immediately, exactly like the pre-long-poll
+        // protocol.
+        $clientWait = (int) $request->input('wait', 0);
+        $seconds = max(0, min($clientWait, (int) config('plugsent.long_poll_seconds', 25), 30));
+        $waitUntil = now()->addSeconds($seconds);
 
         do {
             $commands = $this->pendingCommands($site);
