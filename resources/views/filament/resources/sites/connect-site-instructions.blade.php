@@ -1,5 +1,5 @@
 @php
-    $connectionString = rtrim(config('app.url'), '/').'::'.$key;
+    $connectionString = rtrim(config('app.url'), '/').'::'.$this->pairingCode;
 @endphp
 
 <div class="plugsent-connection"
@@ -11,7 +11,8 @@
                 x-text="copied ? 'Copied!' : 'Copy'"></button>
     </div>
     <p class="plugsent-note">
-        Paste this whole string into <strong>Settings → Plugsent Connector</strong> on the WordPress site.
-        No expiry — regenerate it from the dashboard any time.
+        Expires in 15 minutes and works once. Paste it into
+        <strong>Settings → Plugsent Connector</strong> on the WordPress site —
+        the site flips to <strong>Connected</strong> on its first check-in.
     </p>
 </div>
