@@ -72,6 +72,36 @@ class PollController extends Controller
             ->where('expires_at', '<=', now())
             ->update(['status' => SiteCommand::STATUS_FAILED]);
 
+        // A command that was delivered but stayed unanswered for 10 minutes
+        // means the connector died mid-execution (fatal, timeout). Reap it
+        // so the dashboard shows a failure instead of spinning forever.
+        // Late results still win: ResultsController overwrites on arrival.
+        $timedOut = SiteCommand::query()
+            ->where('site_id', $site->getKey())
+            ->where('status', SiteCommand::STATUS_DISPATCHED)
+            ->where('dispatched_at', '<=', now()->subMinutes(10))
+            ->get();
+
+        if ($timedOut->isNotEmpty()) {
+            SiteCommand::query()
+                ->whereIn('id', $timedOut->modelKeys())
+                ->update([
+                    'status' => SiteCommand::STATUS_FAILED,
+                    'result' => ['error' => 'Timed out — the site never reported a result (the connector may have crashed mid-command).'],
+                    'completed_at' => now(),
+                ]);
+
+            // The action may have half-run on the site; re-sync inventory
+            // so the dashboard self-corrects.
+            if (! SiteCommand::query()
+                ->where('site_id', $site->getKey())
+                ->where('type', 'inventory.get')
+                ->whereIn('status', [SiteCommand::STATUS_PENDING, SiteCommand::STATUS_DISPATCHED])
+                ->exists()) {
+                app(EnqueueSiteCommand::class)($site, 'inventory.get');
+            }
+        }
+
         return SiteCommand::query()
             ->where('site_id', $site->getKey())
             ->where('status', SiteCommand::STATUS_PENDING)

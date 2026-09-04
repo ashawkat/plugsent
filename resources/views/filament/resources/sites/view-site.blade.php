@@ -34,7 +34,7 @@
                 <span class="plugsent-process-spinner"></span>
                 <strong>Process in progress</strong>
                 <span class="plugsent-process-elapsed">
-                    {{ now()->diffInSeconds($running->first()->created_at) }}s
+                    {{ max(0, (int) now()->diffInSeconds($running->first()->created_at)) }}s
                 </span>
             </div>
             <ul class="plugsent-process-steps">

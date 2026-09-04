@@ -401,7 +401,7 @@ API-first is the correct core, not an add-on.
 1. ~~**Admin quick login**~~ — shipped (connector 0.7.0+).
 2. ~~**Team**~~ — shipped: email invitations, roles (owner/admin/member), member management, per-project membership (lead/editor/viewer) with enforced access.
 3. ~~**Settings (mail/SMTP from the UI)**~~ — shipped: owner-only Settings page; DB-backed SMTP config overrides .env at runtime (password stored encrypted), test-email action, invite "Copy link" fallback when delivery fails.
-4. ~~**Plugin/theme management actions**~~ — shipped (connector 0.11.0): remote plugin activate/deactivate/delete, theme switch/delete (connector itself can never be managed remotely), per-site "exclude from updates" flags, capability-gated UI for old connectors.
+4. ~~**Plugin/theme management actions**~~ — shipped (connector 0.11.1): remote plugin activate/deactivate/delete, theme switch/delete (connector itself can never be managed remotely), per-site "exclude from updates" flags, capability-gated UI for old connectors, fatal-guard + timeout reaping so commands can never hang forever.
 5. **Safe-update pipeline** — restore points, smoke tests, rollback (the exclusions table is its denylist groundwork).
 6. **Uptime monitoring** then **vulnerability feed**.
 7. Later: automation policies, digests, backups integration, MCP + public API packaging.

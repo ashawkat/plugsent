@@ -354,6 +354,62 @@ class ConnectorProtocolTest extends TestCase
         );
     }
 
+    public function test_delivered_but_unanswered_commands_are_reaped_as_failed(): void
+    {
+        [$site, $keyPair] = $this->pairedSite();
+
+        // Consume the pairing inventory so nothing else pends.
+        $first = $this->signedCall(
+            '/connector/v1/poll',
+            ['wp_version' => '6.8.1'],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        )->json('commands');
+        $this->signedCall(
+            '/connector/v1/results',
+            ['results' => array_map(fn (array $c) => [
+                'id' => $c['id'], 'status' => 'ok', 'data' => ['inventory' => $this->sampleInventory()],
+            ], $first)],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        );
+
+        // The site polls a delete command but crashes before answering.
+        app(EnqueueSiteCommand::class)($site, 'plugin.delete', ['context' => 'plugin', 'slug' => 'hello']);
+        $this->signedCall(
+            '/connector/v1/poll',
+            ['wp_version' => '6.8.1'],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        );
+
+        $this->assertSame(
+            SiteCommand::STATUS_DISPATCHED,
+            SiteCommand::query()->where('site_id', $site->id)->where('type', 'plugin.delete')->value('status'),
+        );
+
+        // Ten minutes later the next check-in reaps the unanswered command.
+        $this->travel(11)->minutes();
+        $this->signedCall(
+            '/connector/v1/poll',
+            ['wp_version' => '6.8.1'],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        );
+
+        $command = SiteCommand::query()->where('site_id', $site->id)->where('type', 'plugin.delete')->first();
+        $this->assertSame(SiteCommand::STATUS_FAILED, $command->status);
+        $this->assertStringContainsString('Timed out', $command->result['error']);
+
+        // The dashboard self-corrects: inventory is re-synced (queued and
+        // delivered to this same poll, hence dispatched).
+        $this->assertDatabaseHas('site_commands', [
+            'site_id' => $site->id,
+            'type' => 'inventory.get',
+            'status' => SiteCommand::STATUS_DISPATCHED,
+        ]);
+    }
+
     public function test_connected_site_with_empty_inventory_is_asked_for_it(): void
     {
         [$site, $keyPair] = $this->pairedSite();
