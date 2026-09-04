@@ -48,8 +48,8 @@
                 <div class="plugsent-field">
                     <label>Encryption</label>
                     <select class="plugsent-select" wire:model.lazy="encryption">
-                        <option value="tls">TLS (STARTTLS)</option>
-                        <option value="ssl">SSL</option>
+                        <option value="smtp">STARTTLS (port 587)</option>
+                        <option value="smtps">Implicit TLS (port 465)</option>
                         <option value="none">None</option>
                     </select>
                 </div>

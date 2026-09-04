@@ -48,7 +48,7 @@ class MailSettingsTest extends TestCase
             ->set('port', 2525)
             ->set('username', 'adnan')
             ->set('password', 'super-secret')
-            ->set('encryption', 'tls')
+            ->set('encryption', 'smtps')
             ->set('fromAddress', 'hello@betatech.co')
             ->set('fromName', 'BetaTech')
             ->call('save')
@@ -67,9 +67,26 @@ class MailSettingsTest extends TestCase
         $this->assertSame(2525, config('mail.mailers.smtp.port'));
         $this->assertSame('adnan', config('mail.mailers.smtp.username'));
         $this->assertSame('super-secret', config('mail.mailers.smtp.password'));
-        $this->assertSame('tls', config('mail.mailers.smtp.scheme'));
+        $this->assertSame('smtps', config('mail.mailers.smtp.scheme'));
         $this->assertSame('hello@betatech.co', config('mail.from.address'));
         $this->assertSame('BetaTech', config('mail.from.name'));
+    }
+
+    public function test_legacy_tls_and_ssl_schemes_are_upgraded_on_read(): void
+    {
+        Setting::query()->insert([
+            ['key' => 'mail_mailer', 'value' => 'smtp'],
+            ['key' => 'mail_encryption', 'value' => 'tls'],
+        ]);
+
+        (new MailSettings)->apply();
+
+        $this->assertSame('smtp', config('mail.mailers.smtp.scheme'));
+
+        Setting::query()->where('key', 'mail_encryption')->update(['value' => 'ssl']);
+        (new MailSettings)->apply();
+
+        $this->assertSame('smtps', config('mail.mailers.smtp.scheme'));
     }
 
     public function test_saving_with_blank_password_keeps_the_stored_secret(): void

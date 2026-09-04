@@ -16,6 +16,28 @@ class MailSettings
 
     public const MAILER_SMTP = 'smtp';
 
+    /** Transport schemes this Laravel version accepts for the smtp mailer. */
+    public const SCHEME_STARTTLS = 'smtp';
+
+    public const SCHEME_IMPLICIT_TLS = 'smtps';
+
+    public const SCHEME_NONE = 'none';
+
+    /** Values the UI stored before the scheme fix; upgraded transparently on read. */
+    private const LEGACY_SCHEMES = [
+        'tls' => self::SCHEME_STARTTLS,
+        'ssl' => self::SCHEME_IMPLICIT_TLS,
+    ];
+
+    public static function normalizeScheme(?string $scheme): string
+    {
+        $scheme = self::LEGACY_SCHEMES[$scheme] ?? $scheme;
+
+        return in_array($scheme, [self::SCHEME_STARTTLS, self::SCHEME_IMPLICIT_TLS, self::SCHEME_NONE], true)
+            ? $scheme
+            : self::SCHEME_STARTTLS;
+    }
+
     /** Keys whose values are stored encrypted (they are credentials). */
     private const SECRET_KEYS = ['mail_password'];
 
@@ -44,7 +66,7 @@ class MailSettings
             'mail_port' => config('mail.mailers.smtp.port'),
             'mail_username' => config('mail.mailers.smtp.username'),
             'mail_password' => config('mail.mailers.smtp.password'),
-            'mail_encryption' => config('mail.mailers.smtp.scheme') ?? 'tls',
+            'mail_encryption' => self::normalizeScheme(config('mail.mailers.smtp.scheme')),
             'mail_from_address' => config('mail.from.address'),
             'mail_from_name' => config('mail.from.name'),
         ];
@@ -64,6 +86,8 @@ class MailSettings
 
             $settings[$key] = $value;
         }
+
+        $settings['mail_encryption'] = self::normalizeScheme($settings['mail_encryption']);
 
         return $this->resolved = $settings;
     }
@@ -111,8 +135,8 @@ class MailSettings
             config()->set('mail.mailers.smtp.username', $settings['mail_username'] ?? null);
             config()->set('mail.mailers.smtp.password', $settings['mail_password'] ?? null);
 
-            $encryption = $settings['mail_encryption'] ?? 'tls';
-            config()->set('mail.mailers.smtp.scheme', $encryption === 'none' ? null : $encryption);
+            $scheme = self::normalizeScheme($settings['mail_encryption'] ?? null);
+            config()->set('mail.mailers.smtp.scheme', $scheme === self::SCHEME_NONE ? null : $scheme);
         }
 
         if (! empty($settings['mail_from_address'])) {

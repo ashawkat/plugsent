@@ -30,7 +30,7 @@ class Settings extends Page
 
     public ?string $password = null;
 
-    public string $encryption = 'tls';
+    public string $encryption = MailSettings::SCHEME_STARTTLS;
 
     public ?string $fromAddress = null;
 
@@ -49,9 +49,7 @@ class Settings extends Page
         $this->host = $all['mail_host'] ?: null;
         $this->port = (int) ($all['mail_port'] ?: 587);
         $this->username = $all['mail_username'] ?: null;
-        $this->encryption = in_array($all['mail_encryption'] ?? null, ['tls', 'ssl', 'none'], true)
-            ? $all['mail_encryption']
-            : 'tls';
+        $this->encryption = MailSettings::normalizeScheme($all['mail_encryption'] ?? null);
         $this->fromAddress = $all['mail_from_address'] ?: null;
         $this->fromName = $all['mail_from_name'] ?: null;
 
@@ -89,7 +87,7 @@ class Settings extends Page
             'port' => ['nullable', 'integer', 'between:1,65535'],
             'username' => ['nullable', 'string', 'max:255'],
             'password' => ['nullable', 'string', 'max:255'],
-            'encryption' => ['nullable', 'in:tls,ssl,none'],
+            'encryption' => ['nullable', 'in:smtp,smtps,none'],
             'fromAddress' => ['required', 'email', 'max:255'],
             'fromName' => ['nullable', 'string', 'max:255'],
         ], [
