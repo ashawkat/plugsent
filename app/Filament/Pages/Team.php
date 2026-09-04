@@ -4,10 +4,13 @@ namespace App\Filament\Pages;
 
 use App\Mail\WorkspaceInvitationMail;
 use App\Models\User;
+use App\Models\Workspace;
 use App\Models\WorkspaceInvitation;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use BackedEnum;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
@@ -15,6 +18,8 @@ use Illuminate\Validation\Rule;
 
 class Team extends Page
 {
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUsers;
+
     protected static ?int $navigationSort = 4;
 
     protected static ?string $navigationLabel = 'Team';
@@ -143,10 +148,5 @@ class Team extends Page
     protected function authorizeManagement(): void
     {
         abort_unless(auth()->user()->isWorkspaceAdmin($this->workspace), 403);
-    }
-
-    public function render(): View
-    {
-        return view('filament.pages.team');
     }
 }

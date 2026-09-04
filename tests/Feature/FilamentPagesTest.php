@@ -35,6 +35,7 @@ class FilamentPagesTest extends TestCase
         $this->get("/app/{$workspace->slug}/sites/create")->assertOk();
         $this->get("/app/{$workspace->slug}/connect-site")->assertOk();
         $this->get("/app/{$workspace->slug}/sites/1")->assertOk();
+        $this->get("/app/{$workspace->slug}/team")->assertOk();
     }
 
     public function test_non_member_cannot_render_tenant_pages(): void
