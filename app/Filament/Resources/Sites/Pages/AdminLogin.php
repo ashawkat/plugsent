@@ -103,10 +103,11 @@ class AdminLogin extends Page
             return;
         }
 
-        // No answer within 60s of queueing: treat as unreachable.
-        if ($command->created_at->lt(now()->subSeconds(60))
+        // No answer within 150s of queueing: treat as unreachable. WP-Cron
+        // hosts can take up to a minute to answer, so stay patient.
+        if ($command->created_at->lt(now()->subSeconds(150))
             && $command->status !== SiteCommand::STATUS_COMPLETED) {
-            $this->error = 'The site did not answer in time. Check that it is online and running connector 0.7.0+, then retry.';
+            $this->error = 'The site did not answer in time. Check that it is online and running connector 0.8.0+, then retry.';
         }
     }
 }

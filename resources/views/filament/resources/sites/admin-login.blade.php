@@ -29,7 +29,7 @@
             </div>
             <p class="plugsent-process-note">
                 The site is generating a one-time login link. You'll be redirected automatically —
-                usually within a few seconds.
+                usually within 15–60 seconds — this page redirects automatically when the link is ready.
             </p>
         </div>
     @endif
