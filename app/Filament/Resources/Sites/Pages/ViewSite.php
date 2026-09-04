@@ -361,6 +361,20 @@ class ViewSite extends Page
         };
     }
 
+    /**
+     * Whether an update/management command for this item is still in flight
+     * (queued or running). Terminal results (done ✓/failed) keep their
+     * status text but must not block new actions on the same item.
+     */
+    public function inFlightFor(InventoryItem $record): bool
+    {
+        $command = $this->commandStates()[$record->context.'|'.$record->slug] ?? null;
+
+        return $command !== null
+            && $command->created_at->gt(now()->subMinutes(30))
+            && in_array($command->status, [SiteCommand::STATUS_PENDING, SiteCommand::STATUS_DISPATCHED], true);
+    }
+
     public function runningProcesses(): Collection
     {
         return SiteCommand::query()

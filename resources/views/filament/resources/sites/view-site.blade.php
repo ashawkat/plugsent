@@ -88,8 +88,9 @@
                         @forelse($items as $item)
                             @php
                                 $status = $this->statusFor($item);
+                                $inFlight = $this->inFlightFor($item);
                                 $isExcluded = in_array($context.'|'.$item->slug, $excluded, true);
-                                $manageable = $connected && $context !== 'core' && ! $status
+                                $manageable = $connected && $context !== 'core' && ! $inFlight
                                     && $item->slug !== 'plugsent-connector';
                             @endphp
                             <tr>
@@ -120,7 +121,7 @@
                                     </span>
                                 </td>
                                 <td class="plugsent-cell-actions">
-                                    @if($connected && $item->update_available && ! $status && ! $isExcluded)
+                                    @if($connected && $item->update_available && ! $inFlight && ! $isExcluded)
                                         <button type="button" class="plugsent-btn plugsent-btn-primary"
                                                 wire:click="requestUpdate('{{ $context }}', '{{ $item->slug }}')">
                                             Update

@@ -194,6 +194,66 @@ class SiteActionsTest extends TestCase
         $this->assertTrue($site->isExcludedFromUpdates('plugin', 'akismet'));
     }
 
+    public function test_terminal_statuses_do_not_block_new_actions(): void
+    {
+        $owner = User::factory()->create();
+        $site = $this->siteFor($owner, capabilities: self::FULL_CAPABILITIES);
+
+        InventoryItem::query()->create([
+            'site_id' => $site->id, 'context' => InventoryItem::CONTEXT_PLUGIN,
+            'slug' => 'hello-dolly', 'name' => 'Hello Dolly', 'version' => '1.7',
+            'update_available' => false, 'update_version' => null, 'active' => false,
+        ]);
+
+        // The plugin was just deactivated successfully — the done status
+        // must not hide the Activate button for the next 30 minutes.
+        SiteCommand::query()->create([
+            'site_id' => $site->id,
+            'type' => 'plugin.deactivate',
+            'payload' => ['context' => 'plugin', 'slug' => 'hello-dolly'],
+            'status' => SiteCommand::STATUS_COMPLETED,
+            'result' => ['data' => ['action' => ['context' => 'plugin', 'slug' => 'hello-dolly', 'ok' => true, 'message' => 'Deactivated.']]],
+            'dispatched_at' => now()->subMinute(),
+            'completed_at' => now()->subSeconds(30),
+        ]);
+
+        $this->actingAs($owner);
+
+        $this->get($this->viewUrl($site))
+            ->assertOk()
+            ->assertSee('Deactivated ✓')
+            ->assertSee('Activate')
+            ->assertSee('Delete');
+    }
+
+    public function test_in_flight_statuses_hide_action_buttons(): void
+    {
+        $owner = User::factory()->create();
+        $site = $this->siteFor($owner, capabilities: self::FULL_CAPABILITIES);
+
+        InventoryItem::query()->create([
+            'site_id' => $site->id, 'context' => InventoryItem::CONTEXT_PLUGIN,
+            'slug' => 'hello-dolly', 'name' => 'Hello Dolly', 'version' => '1.7',
+            'update_available' => false, 'update_version' => null, 'active' => true,
+        ]);
+
+        SiteCommand::query()->create([
+            'site_id' => $site->id,
+            'type' => 'plugin.deactivate',
+            'payload' => ['context' => 'plugin', 'slug' => 'hello-dolly'],
+            'status' => SiteCommand::STATUS_DISPATCHED,
+            'dispatched_at' => now(),
+        ]);
+
+        $this->actingAs($owner);
+
+        $this->get($this->viewUrl($site))
+            ->assertOk()
+            ->assertSee('Deactivating…')
+            ->assertDontSee('Deactivate</button>', false)
+            ->assertDontSee('Delete</button>', false);
+    }
+
     private function siteFor(User $owner, array $capabilities = []): Site
     {
         $workspace = app(CreateWorkspaceForUser::class)($owner, 'BetaTech');
