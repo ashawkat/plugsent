@@ -587,15 +587,30 @@ body {
 
 .plugsent-form-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: minmax(0, 320px);
     gap: 14px 16px;
     padding: 0 18px 6px;
+}
+
+.plugsent-form-grid.cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.plugsent-form-grid.cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .plugsent-field {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    min-width: 0;
+}
+
+.plugsent-field .plugsent-input,
+.plugsent-field .plugsent-select {
+    width: 100%;
+    min-width: 0;
 }
 
 .plugsent-field label {
@@ -621,4 +636,11 @@ body {
     color: #dc2626;
     font-size: 13px;
     padding: 8px 18px 0;
+}
+
+@media (max-width: 720px) {
+    .plugsent-form-grid.cols-2,
+    .plugsent-form-grid.cols-3 {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }

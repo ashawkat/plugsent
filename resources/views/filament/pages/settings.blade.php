@@ -34,7 +34,7 @@
         </div>
 
         @if($this->mailer === 'smtp')
-            <div class="plugsent-form-grid">
+            <div class="plugsent-form-grid cols-3">
                 <div class="plugsent-field">
                     <label>SMTP host</label>
                     <input type="text" class="plugsent-input" placeholder="smtp.example.com"
@@ -53,6 +53,8 @@
                         <option value="none">None</option>
                     </select>
                 </div>
+            </div>
+            <div class="plugsent-form-grid cols-2">
                 <div class="plugsent-field">
                     <label>Username</label>
                     <input type="text" class="plugsent-input" wire:model.lazy="username" />
@@ -65,7 +67,7 @@
             </div>
         @endif
 
-        <div class="plugsent-form-grid">
+        <div class="plugsent-form-grid cols-2">
             <div class="plugsent-field">
                 <label>From address</label>
                 <input type="email" class="plugsent-input" placeholder="hello@yourdomain.com"
