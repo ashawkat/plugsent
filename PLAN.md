@@ -400,10 +400,11 @@ API-first is the correct core, not an add-on.
 
 1. ~~**Admin quick login**~~ — shipped (connector 0.7.0+).
 2. ~~**Team**~~ — shipped: email invitations, roles (owner/admin/member), member management, per-project membership (lead/editor/viewer) with enforced access.
-3. **Plugin/theme management actions** — activate / deactivate / delete / exclude-from-updates (next).
-4. **Safe-update pipeline** — restore points, smoke tests, rollback.
-5. **Uptime monitoring** then **vulnerability feed**.
-6. Later: automation policies, digests, backups integration, MCP + public API packaging.
+3. ~~**Settings (mail/SMTP from the UI)**~~ — shipped: owner-only Settings page; DB-backed SMTP config overrides .env at runtime (password stored encrypted), test-email action, invite "Copy link" fallback when delivery fails.
+4. **Plugin/theme management actions** — activate / deactivate / delete / exclude-from-updates (next).
+5. **Safe-update pipeline** — restore points, smoke tests, rollback.
+6. **Uptime monitoring** then **vulnerability feed**.
+7. Later: automation policies, digests, backups integration, MCP + public API packaging.
 
 
 

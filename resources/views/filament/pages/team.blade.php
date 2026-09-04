@@ -77,8 +77,14 @@
                                 <td><span class="plugsent-state plugsent-state-active">{{ $invitation->role }}</span></td>
                                 <td class="plugsent-muted">expires {{ $invitation->expires_at->diffForHumans() }}</td>
                                 <td class="plugsent-cell-actions">
+                                    <button type="button" class="plugsent-btn plugsent-copy-btn"
+                                            x-data
+                                            x-on:click="navigator.clipboard.writeText(@js(route('invitations.show', ['token' => $invitation->token]))); $el.textContent = 'Copied!'; setTimeout(() => $el.textContent = 'Copy link', 1500)">
+                                        Copy link
+                                    </button>
                                     <button type="button" class="plugsent-btn"
-                                            wire:click="revokeInvitation({{ $invitation->id }})">
+                                            wire:click="revokeInvitation({{ $invitation->id }})"
+                                            wire:confirm="Revoke the invitation for {{ $invitation->email }}?">
                                         Revoke
                                     </button>
                                 </td>

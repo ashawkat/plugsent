@@ -579,3 +579,46 @@ body {
     padding: 0 18px 14px;
     margin: 0;
 }
+
+/* ---- Settings ---- */
+.plugsent-card-body {
+    padding: 0 18px 18px;
+}
+
+.plugsent-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px 16px;
+    padding: 0 18px 6px;
+}
+
+.plugsent-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.plugsent-field label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6b7280;
+}
+
+.dark .plugsent-field label {
+    color: #9ca3af;
+}
+
+.plugsent-form-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px 6px;
+}
+
+.plugsent-error {
+    color: #dc2626;
+    font-size: 13px;
+    padding: 8px 18px 0;
+}

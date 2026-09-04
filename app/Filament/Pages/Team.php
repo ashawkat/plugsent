@@ -6,15 +6,15 @@ use App\Mail\WorkspaceInvitationMail;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Models\WorkspaceInvitation;
+use BackedEnum;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
-use BackedEnum;
 use Filament\Support\Icons\Heroicon;
-use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Throwable;
 
 class Team extends Page
 {
@@ -93,7 +93,22 @@ class Team extends Page
             'expires_at' => now()->addDays(7),
         ]);
 
-        Mail::to($email)->send(new WorkspaceInvitationMail($invitation, auth()->user()));
+        try {
+            Mail::to($email)->send(new WorkspaceInvitationMail($invitation, auth()->user()));
+        } catch (Throwable $e) {
+            report($e);
+
+            Notification::make()
+                ->title('Invitation created, but the email could not be sent')
+                ->body('Check the mail settings, or use "Copy link" on the pending invitation and share it with '.$email.' directly.')
+                ->warning()
+                ->send();
+
+            $this->inviteEmail = null;
+            $this->inviteRole = 'member';
+
+            return;
+        }
 
         $this->inviteEmail = null;
         $this->inviteRole = 'member';
