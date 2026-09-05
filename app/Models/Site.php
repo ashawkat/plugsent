@@ -8,9 +8,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['workspace_id', 'project_id', 'name', 'url', 'status', 'php_version', 'wp_version', 'last_seen_at', 'tags', 'capabilities', 'connector_version', 'api_key', 'api_key_hash'])]
+#[Fillable(['workspace_id', 'project_id', 'name', 'url', 'status', 'php_version', 'wp_version', 'last_seen_at', 'tags', 'capabilities', 'connector_version', 'api_key', 'api_key_hash', 'uptime_enabled', 'uptime_status', 'uptime_last_checked_at', 'uptime_last_status_code', 'uptime_last_response_ms', 'uptime_last_error', 'uptime_consecutive_failures'])]
 class Site extends Model
 {
+    public const UPTIME_UP = 'up';
+
+    public const UPTIME_DOWN = 'down';
+
+    public const UPTIME_UNKNOWN = 'unknown';
+
     protected function casts(): array
     {
         return [
@@ -20,6 +26,10 @@ class Site extends Model
             'tags' => 'array',
             'capabilities' => 'array',
             'api_key' => 'encrypted',
+            'uptime_enabled' => 'boolean',
+            'uptime_last_checked_at' => 'datetime',
+            'uptime_last_status_code' => 'integer',
+            'uptime_last_response_ms' => 'integer',
         ];
     }
 
@@ -51,6 +61,16 @@ class Site extends Model
     public function updateRuns(): HasMany
     {
         return $this->hasMany(UpdateRun::class);
+    }
+
+    public function uptimeIncidents(): HasMany
+    {
+        return $this->hasMany(UptimeIncident::class);
+    }
+
+    public function activeIncident(): ?UptimeIncident
+    {
+        return $this->uptimeIncidents()->whereNull('ended_at')->orderByDesc('id')->first();
     }
 
     /**

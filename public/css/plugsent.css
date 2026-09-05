@@ -644,3 +644,23 @@ body {
         grid-template-columns: minmax(0, 1fr);
     }
 }
+
+.plugsent-state-up {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.dark .plugsent-state-up {
+    background: #14532d;
+    color: #bbf7d0;
+}
+
+.plugsent-state-down {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.dark .plugsent-state-down {
+    background: #7f1d1d;
+    color: #fecaca;
+}

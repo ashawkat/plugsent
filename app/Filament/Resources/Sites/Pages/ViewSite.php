@@ -392,6 +392,32 @@ class ViewSite extends Page
             ->all();
     }
 
+    public function toggleUptime(): void
+    {
+        Gate::authorize('update', $this->site);
+
+        $this->site->forceFill(['uptime_enabled' => ! $this->site->uptime_enabled])->save();
+
+        Notification::make()
+            ->title($this->site->uptime_enabled ? 'Uptime monitoring on' : 'Uptime monitoring off')
+            ->body($this->site->uptime_enabled
+                ? "{$this->site->name} is checked every ".config('plugsent.uptime_interval_minutes', 5).' minutes.'
+                : "Checks for {$this->site->name} are paused. Existing incidents stay on record.")
+            ->success()
+            ->send();
+    }
+
+    /**
+     * Recent downtime episodes, newest first.
+     */
+    public function recentIncidents(): Collection
+    {
+        return $this->site->uptimeIncidents()
+            ->orderByDesc('id')
+            ->limit(5)
+            ->get();
+    }
+
     /**
      * Latest update/management command state per context|slug (last 30
      * minutes). keyBy keeps the newest command when one slug was hit twice.

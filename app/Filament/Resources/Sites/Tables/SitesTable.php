@@ -39,6 +39,21 @@ class SitesTable
                     ->badge()
                     ->color(fn (int $state): string => $state > 0 ? 'warning' : 'success')
                     ->formatStateUsing(fn (int $state): string => $state > 0 ? "{$state} pending" : 'Up to date'),
+                TextColumn::make('uptime_status')
+                    ->label('Uptime')
+                    ->badge()
+                    ->state(fn (Site $record): string => match ($record->uptime_status) {
+                        Site::UPTIME_UP => $record->uptime_last_checked_at !== null
+                            ? 'Up · '.$record->uptime_last_checked_at->diffForHumans()
+                            : 'Up',
+                        Site::UPTIME_DOWN => 'Down',
+                        default => '—',
+                    })
+                    ->color(fn (Site $record): string => match ($record->uptime_status) {
+                        Site::UPTIME_UP => 'success',
+                        Site::UPTIME_DOWN => 'danger',
+                        default => 'gray',
+                    }),
                 TextColumn::make('status')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {

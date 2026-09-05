@@ -175,6 +175,22 @@ class PluginCheckCompatibilityTest extends TestCase
         }
     }
 
+    public function test_header_version_matches_the_version_constant(): void
+    {
+        $main = (string) file_get_contents($this->pluginDir.'/plugsent-connector.php');
+
+        preg_match('/\*\s+Version:\s+(\S+)/', $main, $header);
+        preg_match("/PLUGSENT_CONNECTOR_VERSION',\s*'([^']+)'\)/", $main, $constant);
+
+        $this->assertNotEmpty($header, 'Header version missing.');
+        $this->assertNotEmpty($constant, 'Version constant missing.');
+        $this->assertSame(
+            $constant[1],
+            $header[1],
+            'Header and PLUGSENT_CONNECTOR_VERSION drifted — WordPress shows the header.',
+        );
+    }
+
     public function test_every_advertised_capability_has_a_dispatch_branch(): void
     {
         $class = (string) file_get_contents($this->pluginDir.'/includes/class-plugsent-connector.php');

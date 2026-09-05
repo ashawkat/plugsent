@@ -28,6 +28,98 @@
         @endif
     </div>
 
+    {{-- Uptime --}}
+    @php
+        $activeIncident = $this->site->activeIncident();
+        $incidents = $this->recentIncidents();
+    @endphp
+    <div class="plugsent-category">
+        <div class="plugsent-category-head">
+            <h2>Uptime</h2>
+            @if($connected)
+                <button type="button" class="plugsent-btn" wire:click="toggleUptime">
+                    {{ $this->site->uptime_enabled ? 'Pause monitoring' : 'Resume monitoring' }}
+                </button>
+            @endif
+        </div>
+
+        <div class="plugsent-form-grid cols-3" style="padding-top: 14px;">
+            <div class="plugsent-field">
+                <label>Status</label>
+                <div>
+                    @if(! $this->site->uptime_enabled)
+                        <span class="plugsent-state plugsent-state-inactive">Monitoring paused</span>
+                    @elseif($this->site->uptime_status === 'up')
+                        <span class="plugsent-state plugsent-state-up">Up</span>
+                    @elseif($this->site->uptime_status === 'down')
+                        <span class="plugsent-state plugsent-state-down">Down</span>
+                    @else
+                        <span class="plugsent-state plugsent-state-inactive">Waiting for first check</span>
+                    @endif
+                </div>
+            </div>
+            <div class="plugsent-field">
+                <label>Last check</label>
+                <div class="plugsent-meta">
+                    @if($this->site->uptime_last_checked_at)
+                        {{ $this->site->uptime_last_checked_at->diffForHumans() }}
+                        @if($this->site->uptime_last_response_ms !== null)
+                            · {{ number_format($this->site->uptime_last_response_ms) }} ms
+                        @endif
+                        @if($this->site->uptime_last_status_code)
+                            · HTTP {{ $this->site->uptime_last_status_code }}
+                        @elseif($this->site->uptime_last_error)
+                            · {{ \Illuminate\Support\Str::limit($this->site->uptime_last_error, 60) }}
+                        @endif
+                    @else
+                        —
+                    @endif
+                </div>
+            </div>
+            <div class="plugsent-field">
+                <label>Downtime</label>
+                <div class="plugsent-meta">
+                    @if($activeIncident)
+                        ⚠ Ongoing since {{ $activeIncident->started_at->diffForHumans() }}
+                    @else
+                        {{ $incidents->whereNotNull('ended_at')->count() }} incident(s) on record
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        @if($incidents->isNotEmpty())
+            <div class="plugsent-table-wrap" style="padding-top: 6px;">
+                <table class="plugsent-table">
+                    <thead>
+                        <tr><th>Started</th><th>Duration</th><th>Detail</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach($incidents as $incident)
+                            <tr>
+                                <td>{{ $incident->started_at->format('M j, H:i') }}</td>
+                                <td>
+                                    @if($incident->isActive())
+                                        <span class="plugsent-state plugsent-state-down">ongoing</span>
+                                    @else
+                                        {{ $incident->started_at->diffForHumans($incident->ended_at, ['parts' => 2]) }}
+                                    @endif
+                                </td>
+                                <td class="plugsent-muted">
+                                    @if($incident->last_error)
+                                        {{ \Illuminate\Support\Str::limit($incident->last_error, 80) }}
+                                    @else
+                                        HTTP {{ $incident->last_status_code ?? '?' }} · {{ $incident->failure_count }} failed checks
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </div>
+
     @if($running->isNotEmpty())
         <div class="plugsent-process">
             <div class="plugsent-process-head">
