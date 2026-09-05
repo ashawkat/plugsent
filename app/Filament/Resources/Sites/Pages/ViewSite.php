@@ -8,6 +8,7 @@ use App\Models\InventoryItem;
 use App\Models\Site;
 use App\Models\SiteCommand;
 use App\Models\UpdateExclusion;
+use App\Models\UpdateRun;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
@@ -45,6 +46,18 @@ class ViewSite extends Page
      * @var array<string, array{queued: string, progress: string, done: string, failed: string}>
      */
     private const ACTION_LABELS = [
+        'update.safe' => [
+            'queued' => 'Preparing restore point…',
+            'progress' => 'Safe updating…',
+            'done' => 'Updated ✓',
+            'failed' => 'Safe update failed',
+        ],
+        'restore.apply' => [
+            'queued' => 'Pending restore…',
+            'progress' => 'Restoring…',
+            'done' => 'Restored ✓',
+            'failed' => 'Restore failed',
+        ],
         'plugin.activate' => [
             'queued' => 'Pending activation…',
             'progress' => 'Activating…',
@@ -183,7 +196,7 @@ class ViewSite extends Page
         foreach ($items as $item) {
             app(EnqueueSiteCommand::class)(
                 $this->site,
-                'update.run',
+                $this->updateTypeFor($item->context),
                 ['context' => $item->context, 'slug' => $item->slug],
                 $batchId,
             );
@@ -192,9 +205,21 @@ class ViewSite extends Page
         Notification::make()
             ->title($items->count().' '.strtolower($context).' updates queued')
             ->body(trim(($skipped > 0 ? $skipped.' excluded item(s) skipped. ' : '')
-                .'They run one at a time on the site — live progress below.'))
+                .'They run one at a time on the site — restore point, smoke test, and automatic rollback included.'))
             ->success()
             ->send();
+    }
+
+    /**
+     * Safe by default: plugins and themes go through the safe-update
+     * pipeline whenever the site's connector supports it. Core and old
+     * connectors keep the plain update.
+     */
+    private function updateTypeFor(string $context): string
+    {
+        return $context !== 'core' && $this->site->supportsCommand('update.safe')
+            ? 'update.safe'
+            : 'update.run';
     }
 
     /**
@@ -294,18 +319,77 @@ class ViewSite extends Page
             return;
         }
 
+        $type = $this->updateTypeFor($context);
+
         app(EnqueueSiteCommand::class)(
             $this->site,
-            'update.run',
+            $type,
             ['context' => $context, 'slug' => $slug],
             (string) Str::uuid(),
         );
 
         Notification::make()
             ->title('Update queued')
-            ->body("\"{$slug}\" will start within seconds — watch the status column.")
+            ->body($type === 'update.safe'
+                ? "\"{$slug}\" will be updated with a restore point, smoke test, and automatic rollback — starting within seconds."
+                : "\"{$slug}\" will start within seconds — watch the status column.")
             ->success()
             ->send();
+    }
+
+    /**
+     * Manually restore an item from its newest restore point (files +
+     * database). Site-level delete permission: it rewrites site state.
+     */
+    public function requestRestore(string $context, string $slug): void
+    {
+        Gate::authorize('delete', $this->site);
+
+        if (! $this->site->isConnected() || ! $this->site->supportsCommand('restore.apply')) {
+            return;
+        }
+
+        app(EnqueueSiteCommand::class)(
+            $this->site,
+            'restore.apply',
+            ['context' => $context, 'slug' => $slug],
+            (string) Str::uuid(),
+        );
+
+        Notification::make()
+            ->title('Restore queued')
+            ->body("\"{$slug}\" will be restored to its backed-up version (files and database) within seconds.")
+            ->success()
+            ->send();
+    }
+
+    /**
+     * Whether the current user may trigger a restore (site-delete level:
+     * it rewrites files and the database on the site).
+     */
+    public function canRestore(): bool
+    {
+        $user = auth()->user();
+
+        return $user !== null && $user->can('delete', $this->site);
+    }
+
+    /**
+     * Items that still hold a usable file restore point, keyed `context|slug`
+     * (the newest run wins).
+     *
+     * @return array<int, string>
+     */
+    public function restorableKeys(): array
+    {
+        return $this->site->updateRuns()
+            ->where('status', UpdateRun::STATUS_UPDATED)
+            ->where('files_backup', true)
+            ->orderBy('id')
+            ->get()
+            ->keyBy(fn (UpdateRun $run): string => $run->context.'|'.$run->slug)
+            ->keys()
+            ->all();
     }
 
     /**
@@ -318,7 +402,7 @@ class ViewSite extends Page
     {
         return SiteCommand::query()
             ->where('site_id', $this->site->getKey())
-            ->whereIn('type', ['update.run', ...self::MANAGE_ACTION_TYPES])
+            ->whereIn('type', ['update.run', 'update.safe', 'restore.apply', ...self::MANAGE_ACTION_TYPES])
             ->where('created_at', '>', now()->subMinutes(30))
             ->orderBy('id')
             ->get()
@@ -338,6 +422,14 @@ class ViewSite extends Page
 
         if ($command === null || $command->created_at->lt(now()->subMinutes(30))) {
             return null;
+        }
+
+        // The safe pipeline's "done" is result-aware: a completed command
+        // whose smoke test failed still means the update was rolled back.
+        if ($command->type === 'update.safe' && $command->status === SiteCommand::STATUS_COMPLETED) {
+            return data_get($command->result, 'data.safe.rolled_back')
+                ? 'Rolled back ⚠'
+                : 'Updated ✓';
         }
 
         $labels = self::ACTION_LABELS[$command->type] ?? null;
@@ -379,7 +471,7 @@ class ViewSite extends Page
     {
         return SiteCommand::query()
             ->where('site_id', $this->site->getKey())
-            ->whereIn('type', ['update.run', 'inventory.get', ...self::MANAGE_ACTION_TYPES])
+            ->whereIn('type', ['update.run', 'update.safe', 'restore.apply', 'inventory.get', ...self::MANAGE_ACTION_TYPES])
             ->whereIn('status', [SiteCommand::STATUS_PENDING, SiteCommand::STATUS_DISPATCHED])
             ->where('created_at', '>', now()->subMinutes(10))
             ->orderBy('id')
@@ -395,6 +487,8 @@ class ViewSite extends Page
 
         return match ($command->type) {
             'update.run' => 'Updating · '.$slug,
+            'update.safe' => 'Safe updating · '.$slug,
+            'restore.apply' => 'Restoring · '.$slug,
             'inventory.get' => 'Refreshing inventory',
             'plugin.activate' => 'Activating · '.$slug,
             'plugin.deactivate' => 'Deactivating · '.$slug,

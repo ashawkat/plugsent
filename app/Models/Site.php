@@ -48,6 +48,11 @@ class Site extends Model
         return $this->hasMany(UpdateExclusion::class);
     }
 
+    public function updateRuns(): HasMany
+    {
+        return $this->hasMany(UpdateRun::class);
+    }
+
     /**
      * Whether updates for this inventory item are excluded on the platform
      * side (no Update button, skipped by "Update all").

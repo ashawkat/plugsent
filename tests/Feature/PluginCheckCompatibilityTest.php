@@ -40,7 +40,7 @@ class PluginCheckCompatibilityTest extends TestCase
 
     public function test_no_direct_database_or_obfuscated_code(): void
     {
-        $forbidden = ['eval(', 'base64_decode(', 'str_rot13(', 'gzinflate(', '$wpdb', 'curl_exec'];
+        $forbidden = ['eval(', 'base64_decode(', 'str_rot13(', 'gzinflate(', 'curl_exec'];
 
         foreach ($this->pluginFiles() as $file) {
             $content = (string) file_get_contents($file);
@@ -50,6 +50,17 @@ class PluginCheckCompatibilityTest extends TestCase
                     $needle,
                     $content,
                     "{$file} uses {$needle}, which Plugin Check flags.",
+                );
+            }
+
+            // The safe-update pipeline's backup/restore is the one legitimate
+            // user of direct SQL (streamed dumps/imports); wordpress.org
+            // accepts prepared $wpdb usage for that. Nowhere else.
+            if (! str_contains($file, 'class-plugsent-connector.php')) {
+                $this->assertStringNotContainsString(
+                    '$wpdb',
+                    $content,
+                    "{$file} uses \$wpdb — direct SQL belongs in the connector class only.",
                 );
             }
         }

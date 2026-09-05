@@ -6,6 +6,7 @@ use App\Actions\EnqueueSiteCommand;
 use App\Actions\ProcessInventoryResult;
 use App\Http\Controllers\Controller;
 use App\Models\SiteCommand;
+use App\Models\UpdateRun;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -18,6 +19,8 @@ class ResultsController extends Controller
      */
     private const STATE_CHANGING_TYPES = [
         'update.run',
+        'update.safe',
+        'restore.apply',
         'plugin.activate',
         'plugin.deactivate',
         'plugin.delete',
@@ -62,6 +65,29 @@ class ResultsController extends Controller
 
             if ($command->type === 'inventory.get' && $result['status'] === 'ok') {
                 app(ProcessInventoryResult::class)($site, $result['data']['inventory'] ?? []);
+            }
+
+            // Audit-trail the safe pipeline. A refused pipeline already
+            // rolled itself back on the site — it is never retried.
+            if ($command->type === 'update.safe' && $result['status'] === 'ok') {
+                $safe = $result['data']['safe'] ?? [];
+
+                UpdateRun::query()->create([
+                    'site_id' => $site->getKey(),
+                    'context' => (string) ($safe['context'] ?? ''),
+                    'slug' => (string) ($safe['slug'] ?? ''),
+                    'command_id' => $command->getKey(),
+                    'from_version' => $safe['from_version'] ?? null,
+                    'to_version' => $safe['to_version'] ?? null,
+                    'status' => ($safe['rolled_back'] ?? false)
+                        ? UpdateRun::STATUS_ROLLED_BACK
+                        : (($safe['ok'] ?? false) ? UpdateRun::STATUS_UPDATED : UpdateRun::STATUS_FAILED),
+                    'message' => $safe['message'] ?? null,
+                    'smoke_ok' => $safe['smoke']['ok'] ?? null,
+                    'smoke_status_code' => $safe['smoke']['status_code'] ?? null,
+                    'db_backup' => (bool) ($safe['db_backup'] ?? false),
+                    'files_backup' => (bool) ($safe['files_backup'] ?? false),
+                ]);
             }
 
             // After any state-changing command (update or management action),

@@ -410,6 +410,152 @@ class ConnectorProtocolTest extends TestCase
         ]);
     }
 
+    public function test_safe_update_round_trip_is_audited_and_never_retried(): void
+    {
+        [$site, $keyPair] = $this->pairedSite();
+
+        // Deliver the pairing-time inventory so the self-heal stays quiet.
+        $first = $this->signedCall(
+            '/connector/v1/poll',
+            ['wp_version' => '6.8.1'],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        )->json('commands');
+        $this->signedCall(
+            '/connector/v1/results',
+            ['results' => array_map(fn (array $c) => [
+                'id' => $c['id'], 'status' => 'ok', 'data' => ['inventory' => $this->sampleInventory()],
+            ], $first)],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        );
+
+        app(EnqueueSiteCommand::class)($site, 'update.safe', ['context' => 'plugin', 'slug' => 'akismet']);
+
+        $pollResponse = $this->signedCall(
+            '/connector/v1/poll',
+            ['wp_version' => '6.8.1'],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        );
+        $pollResponse->assertOk()->assertJsonCount(1, 'commands');
+        $command = $pollResponse->json('commands.0');
+        $this->assertSame('update.safe', $command['type']);
+        $this->assertSame('akismet', $command['payload']['slug']);
+
+        // The site reports a pipeline that rolled itself back.
+        $this->signedCall(
+            '/connector/v1/results',
+            ['results' => [[
+                'id' => $command['id'],
+                'status' => 'ok',
+                'data' => ['safe' => [
+                    'context' => 'plugin',
+                    'slug' => 'akismet',
+                    'ok' => false,
+                    'message' => 'The update broke the smoke test; rolled back files + database.',
+                    'from_version' => '5.3.2',
+                    'to_version' => '5.3.2',
+                    'files_backup' => true,
+                    'db_backup' => true,
+                    'rolled_back' => true,
+                    'smoke' => ['ok' => false, 'status_code' => 500],
+                    'restore_point' => 'rp-abc123',
+                ]],
+            ]]],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        )->assertOk();
+
+        $this->assertSame(
+            SiteCommand::STATUS_COMPLETED,
+            SiteCommand::query()->find($command['id'])->status,
+        );
+
+        // The run is audited.
+        $this->assertDatabaseHas('update_runs', [
+            'site_id' => $site->id,
+            'context' => 'plugin',
+            'slug' => 'akismet',
+            'status' => 'rolled_back',
+            'smoke_ok' => false,
+            'smoke_status_code' => 500,
+            'files_backup' => true,
+            'db_backup' => true,
+        ]);
+
+        // A rolled-back pipeline is final: no retry re-queued.
+        $this->assertSame(
+            1,
+            SiteCommand::query()->where('site_id', $site->id)->where('type', 'update.safe')->count(),
+        );
+
+        // Inventory is refreshed after the batch.
+        $this->assertDatabaseHas('site_commands', [
+            'site_id' => $site->id,
+            'type' => 'inventory.get',
+            'status' => SiteCommand::STATUS_PENDING,
+        ]);
+    }
+
+    public function test_restore_apply_round_trip(): void
+    {
+        [$site, $keyPair] = $this->pairedSite();
+
+        $first = $this->signedCall(
+            '/connector/v1/poll',
+            ['wp_version' => '6.8.1'],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        )->json('commands');
+        $this->signedCall(
+            '/connector/v1/results',
+            ['results' => array_map(fn (array $c) => [
+                'id' => $c['id'], 'status' => 'ok', 'data' => ['inventory' => $this->sampleInventory()],
+            ], $first)],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        );
+
+        app(EnqueueSiteCommand::class)($site, 'restore.apply', ['context' => 'theme', 'slug' => 'twentytwentyfive']);
+
+        $poll = $this->signedCall(
+            '/connector/v1/poll',
+            ['wp_version' => '6.8.1'],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        )->json('commands');
+        $this->assertCount(1, $poll);
+        $this->assertSame('restore.apply', $poll[0]['type']);
+
+        $this->signedCall(
+            '/connector/v1/results',
+            ['results' => [[
+                'id' => $poll[0]['id'],
+                'status' => 'ok',
+                'data' => ['restore' => [
+                    'context' => 'theme',
+                    'slug' => 'twentytwentyfive',
+                    'ok' => true,
+                    'message' => 'Restored from the backup taken earlier.',
+                    'restored_version' => '1.2',
+                ]],
+            ]]],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        )->assertOk();
+
+        $this->assertDatabaseHas('site_commands', [
+            'id' => $poll[0]['id'],
+            'status' => SiteCommand::STATUS_COMPLETED,
+        ]);
+        $this->assertDatabaseHas('site_commands', [
+            'site_id' => $site->id,
+            'type' => 'inventory.get',
+            'status' => SiteCommand::STATUS_PENDING,
+        ]);
+    }
+
     public function test_connected_site_with_empty_inventory_is_asked_for_it(): void
     {
         [$site, $keyPair] = $this->pairedSite();

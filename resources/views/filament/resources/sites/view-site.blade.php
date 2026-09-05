@@ -54,6 +54,7 @@
 
     @php
         $excluded = $this->excludedKeys();
+        $restorableKeys = $this->restorableKeys();
     @endphp
 
     @foreach($sections as $context => $label)
@@ -173,6 +174,17 @@
                                         @if($isExcluded)
                                             <span class="plugsent-state plugsent-state-inactive">excluded</span>
                                         @endif
+                                    @endif
+
+                                    @if($connected && $context !== 'core' && ! $inFlight
+                                        && $this->canRestore()
+                                        && $this->site->supportsCommand('restore.apply')
+                                        && in_array($context.'|'.$item->slug, $restorableKeys, true))
+                                        <button type="button" class="plugsent-btn"
+                                                wire:click="requestRestore('{{ $context }}', '{{ $item->slug }}')"
+                                                wire:confirm="Restore {{ $item->name }} on {{ $this->site->name }} to its backed-up version? Its files and database are restored to the state before the last update.">
+                                            Restore backup
+                                        </button>
                                     @endif
                                 </td>
                             </tr>
