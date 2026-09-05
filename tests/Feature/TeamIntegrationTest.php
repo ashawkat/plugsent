@@ -58,6 +58,84 @@ class TeamIntegrationTest extends TestCase
         $this->assertNotNull($invitation->fresh()->accepted_at);
     }
 
+    public function test_invited_guest_joins_with_name_and_password_only(): void
+    {
+        $owner = User::factory()->create();
+        $workspace = app(CreateWorkspaceForUser::class)($owner, 'BetaTech');
+
+        $invitation = $workspace->invitations()->create([
+            'email' => 'sharmin@betatech.co',
+            'role' => 'admin',
+            'token' => 'join-token-123',
+            'invited_by' => $owner->id,
+            'expires_at' => now()->addDays(7),
+        ]);
+
+        // The invite page offers the inline join form with email pre-filled.
+        $this->get('/invitations/join-token-123')
+            ->assertOk()
+            ->assertSee('Create account &amp; join BetaTech', false)
+            ->assertSee('sharmin@betatech.co');
+
+        // One post: name + password. Email and workspace come from the invite.
+        $this->post('/invitations/join-token-123/register', [
+            'name' => 'Sharmin',
+            'password' => 'super-secret-123',
+            'password_confirmation' => 'super-secret-123',
+        ])->assertRedirect();
+
+        $user = User::query()->where('email', 'sharmin@betatech.co')->first();
+        $this->assertNotNull($user);
+        $this->assertDatabaseHas('workspace_user', [
+            'workspace_id' => $workspace->id,
+            'user_id' => $user->id,
+            'role' => 'admin',
+        ]);
+        $this->assertNotNull($invitation->fresh()->accepted_at);
+        $this->assertSame($user->id, auth()->id(), 'The new member is signed in.');
+
+        // No second workspace was created for the invitee.
+        $this->assertSame(1, $user->workspaces()->count());
+    }
+
+    public function test_invite_registration_rejects_weak_passwords_and_existing_emails(): void
+    {
+        $owner = User::factory()->create();
+        $workspace = app(CreateWorkspaceForUser::class)($owner, 'BetaTech');
+
+        $invitation = $workspace->invitations()->create([
+            'email' => 'sharmin@betatech.co',
+            'role' => 'member',
+            'token' => 'weak-token-123',
+            'invited_by' => $owner->id,
+            'expires_at' => now()->addDays(7),
+        ]);
+
+        // Too-short password: validation error, nothing created.
+        $this->from('/invitations/weak-token-123')
+            ->post('/invitations/weak-token-123/register', [
+                'name' => 'Sharmin',
+                'password' => 'short',
+                'password_confirmation' => 'short',
+            ])
+            ->assertRedirect('/invitations/weak-token-123')
+            ->assertSessionHasErrors('password');
+
+        $this->assertDatabaseMissing('users', ['email' => 'sharmin@betatech.co']);
+        $this->assertNull($invitation->fresh()->accepted_at);
+
+        // Email already registered: the register route bounces to the
+        // normal accept flow instead of creating a duplicate.
+        User::factory()->create(['email' => 'sharmin@betatech.co']);
+        $this->post('/invitations/weak-token-123/register', [
+            'name' => 'Someone',
+            'password' => 'super-secret-123',
+            'password_confirmation' => 'super-secret-123',
+        ])->assertRedirect(route('invitations.show', ['token' => 'weak-token-123']));
+
+        $this->assertSame(1, User::query()->where('email', 'sharmin@betatech.co')->count());
+    }
+
     public function test_invitation_email_is_sent_to_the_right_address(): void
     {
         Mail::fake();

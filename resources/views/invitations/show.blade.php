@@ -16,6 +16,12 @@
         .btn:hover { background:#4338ca; }
         .btn-secondary { background:#fff; color:#374151; border:1px solid #d1d5db; margin-right:10px; }
         .muted { color:#6b7280; font-size:13px; }
+        .field { margin-bottom:14px; }
+        .field label { display:block; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; margin-bottom:6px; }
+        .input { width:100%; box-sizing:border-box; padding:10px 12px; border-radius:8px; border:1px solid #d1d5db; font-size:14px; color:#111827; background:#fff; }
+        .input:disabled { background:#f9fafb; color:#6b7280; }
+        .input:focus { outline:2px solid #c7d2fe; border-color:#4f46e5; }
+        .error { color:#dc2626; font-size:13px; margin:-6px 0 12px; }
     </style>
 </head>
 <body>
@@ -43,9 +49,43 @@
             @elseif(auth()->check())
                 <p class="muted">You're logged in as {{ auth()->user()->email }}, but this invitation was sent to <strong>{{ $invitation->email }}</strong>. Log in with that account to accept.</p>
                 <a class="btn" href="{{ url('/app/login') }}">Log in</a>
-            @else
+            @elseif($emailTaken)
+                <p class="muted">An account already exists for <strong>{{ $invitation->email }}</strong>. Log in with it to accept the invitation.</p>
                 <a class="btn" href="{{ url('/app/login') }}">Log in to accept</a>
-                <p class="muted" style="margin-top:12px">No account yet? <a href="{{ url('/app/register') }}">Register with {{ $invitation->email }}</a>, then reopen this link.</p>
+            @else
+                <p class="muted" style="margin-bottom:18px">Your email and workspace are already set — just pick a name and password.</p>
+
+                <form method="post" action="{{ route('invitations.register', ['token' => $invitation->token]) }}">
+                    @csrf
+
+                    <div class="field">
+                        <label>Email</label>
+                        <input type="email" class="input" value="{{ $invitation->email }}" disabled>
+                    </div>
+
+                    <div class="field">
+                        <label>Your name</label>
+                        <input type="text" name="name" class="input" value="{{ old('name') }}" required maxlength="255" autofocus>
+                    </div>
+                    @error('name')
+                        <p class="error">{{ $message }}</p>
+                    @enderror
+
+                    <div class="field">
+                        <label>Password</label>
+                        <input type="password" name="password" class="input" required>
+                    </div>
+
+                    <div class="field">
+                        <label>Confirm password</label>
+                        <input type="password" name="password_confirmation" class="input" required>
+                    </div>
+                    @error('password')
+                        <p class="error">{{ $message }}</p>
+                    @enderror
+
+                    <button type="submit" class="btn">Create account &amp; join {{ $invitation->workspace->name }}</button>
+                </form>
             @endif
         @endif
     </div>

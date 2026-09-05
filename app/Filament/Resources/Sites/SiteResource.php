@@ -38,12 +38,10 @@ class SiteResource extends Resource
         // Workspace admins/owners see everything. Regular members only see
         // sites in projects that are open or explicitly assigned to them.
         if ($user && $tenant && ! $user->isWorkspaceAdmin($tenant)) {
-            $query->whereHas('project', function (Builder $p) {
-                $p->where(function (Builder $q) {
-                    $q->whereDoesntHave('members')
-                        ->orWhereHas('members', fn (Builder $m) => $m->whereKey($user->getKey()));
-                });
-            });
+            $query->whereHas('project', fn (Builder $p) => $p->where(
+                fn (Builder $q) => $q->whereDoesntHave('members')
+                    ->orWhereHas('members', fn (Builder $m) => $m->whereKey($user->getKey())),
+            ));
         }
 
         return $query;

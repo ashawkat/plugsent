@@ -254,6 +254,22 @@ class SiteActionsTest extends TestCase
             ->assertDontSee('Delete</button>', false);
     }
 
+    public function test_non_admin_members_can_browse_sites_and_projects(): void
+    {
+        $owner = User::factory()->create();
+        $site = $this->siteFor($owner, capabilities: []);
+
+        $member = User::factory()->create();
+        $site->workspace->users()->attach($member, ['role' => 'member']);
+        $this->actingAs($member);
+        Filament::setTenant($site->workspace);
+
+        // The member visibility branch of both listings used to fatal on an
+        // undefined closure variable — every invited member hit this.
+        $this->get($this->viewUrl($site))->assertOk();
+        $this->get('/app/'.$site->workspace->slug.'/projects')->assertOk();
+    }
+
     private function siteFor(User $owner, array $capabilities = []): Site
     {
         $workspace = app(CreateWorkspaceForUser::class)($owner, 'BetaTech');
