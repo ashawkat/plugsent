@@ -23,4 +23,15 @@ return [
     | picks up whichever sites are due.
     */
     'uptime_interval_minutes' => env('PLUGSENT_UPTIME_INTERVAL_MINUTES', 5),
+
+    /*
+    |------------------------------------------------------------------
+    | Piggyback uptime checks on connector check-ins
+    |------------------------------------------------------------------
+    |
+    | When no scheduler cron is configured, due uptime checks run on the
+    | connector's ~1-minute poll instead. Disable if you drive checks
+    | purely from `schedule:run`.
+    */
+    'uptime_piggyback' => env('PLUGSENT_UPTIME_PIGGYBACK', true),
 ];

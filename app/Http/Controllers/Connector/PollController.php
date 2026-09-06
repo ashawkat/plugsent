@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Connector;
 
 use App\Actions\EnqueueSiteCommand;
+use App\Actions\RunDueUptimeChecks;
 use App\Http\Controllers\Controller;
 use App\Models\Site;
 use App\Models\SiteCommand;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
+use Throwable;
 
 class PollController extends Controller
 {
@@ -25,6 +28,7 @@ class PollController extends Controller
         $site->markSeen();
 
         $this->maybeSelfHealInventory($site);
+        $this->maybeRunDueUptimeChecks();
 
         // Long-polling is OPT-IN: connectors newer than 0.5.0 send `wait`
         // (their HTTP timeout is 45s). Older connectors abort at 15s, so
@@ -111,6 +115,28 @@ class PollController extends Controller
             ->orderBy('id')
             ->limit(10)
             ->get();
+    }
+
+    /**
+     * Run due uptime checks piggybacked on connector check-ins, so
+     * monitoring works without any server cron. Throttled to at most one
+     * batch every two minutes, and never allowed to break the poll.
+     */
+    protected function maybeRunDueUptimeChecks(): void
+    {
+        if (! config('plugsent.uptime_piggyback', true)) {
+            return;
+        }
+
+        if (! Cache::add('uptime:piggyback-lock', true, 120)) {
+            return;
+        }
+
+        try {
+            app(RunDueUptimeChecks::class)();
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     protected function maybeSelfHealInventory(Site $site): void

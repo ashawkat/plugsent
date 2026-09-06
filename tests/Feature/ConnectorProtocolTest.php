@@ -13,6 +13,7 @@ use App\Models\SiteCredential;
 use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Plugsent\ConnectorSigning\Signer;
 use Tests\TestCase;
@@ -554,6 +555,40 @@ class ConnectorProtocolTest extends TestCase
             'type' => 'inventory.get',
             'status' => SiteCommand::STATUS_PENDING,
         ]);
+    }
+
+    public function test_connector_check_ins_piggyback_due_uptime_checks(): void
+    {
+        // Opt in — the suite disables the piggyback to keep real HTTP away.
+        config(['plugsent.uptime_piggyback' => true]);
+
+        Http::fake([
+            'https://piggyback.test' => Http::response('hello', 200),
+        ]);
+
+        [$site, $keyPair] = $this->pairedSite();
+
+        // A second, unrelated connected site relies on the first site's
+        // connector check-in for its uptime check (no scheduler configured).
+        $owner = User::factory()->create();
+        $workspace = Workspace::create(['name' => 'Beta', 'owner_id' => $owner->id]);
+        $workspace->users()->attach($owner, ['role' => 'owner']);
+        $project = Project::create(['workspace_id' => $workspace->id, 'name' => 'P']);
+        $watched = Site::create([
+            'workspace_id' => $workspace->id, 'project_id' => $project->id,
+            'name' => 'Watched', 'url' => 'https://piggyback.test', 'status' => 'connected',
+        ]);
+
+        $this->signedCall(
+            '/connector/v1/poll',
+            ['wp_version' => '6.8.1'],
+            $keyPair['site_key'],
+            $keyPair['site_secret'],
+        );
+
+        $watched->refresh();
+        $this->assertSame(Site::UPTIME_UP, $watched->uptime_status);
+        $this->assertNotNull($watched->uptime_last_checked_at);
     }
 
     public function test_connected_site_with_empty_inventory_is_asked_for_it(): void
