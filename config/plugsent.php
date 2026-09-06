@@ -41,8 +41,9 @@ return [
     |------------------------------------------------------------------
     |
     | Minimum seconds between feed sync attempts — every request counts
-    | against the (free) Wordfence API key's quota, so failed syncs are
-    | cooldown-gated instead of being retried in a loop.
+    | against the (free) Wordfence API key's quota, and Wordfence warns
+    | that exceeding the limit may suspend the key. One hour is the safe
+    | default; a successful sync stores everything locally anyway.
     */
-    'vuln_sync_cooldown_seconds' => env('PLUGSENT_VULN_SYNC_COOLDOWN', 600),
+    'vuln_sync_cooldown_seconds' => env('PLUGSENT_VULN_SYNC_COOLDOWN', 3600),
 ];
