@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Actions\SyncVulnerabilityFeed;
 use App\Support\AppSettings;
 use App\Support\MailSettings;
 use BackedEnum;
