@@ -129,8 +129,8 @@ class SiteActionsTest extends TestCase
         // management buttons are capability-gated.
         $this->get($this->viewUrl($oldConnector))
             ->assertOk()
-            ->assertDontSee('Deactivate')
-            ->assertSee('Exclude updates');
+            ->assertDontSee('aria-label="Deactivate"', false)
+            ->assertSee('aria-label="Exclude from updates"', false);
 
         // Filament keeps the current tenant in the session, so follow the
         // real user path: open the workspace, then the site page.
@@ -138,8 +138,8 @@ class SiteActionsTest extends TestCase
 
         $this->get($this->viewUrl($newConnector))
             ->assertOk()
-            ->assertSee('Deactivate')
-            ->assertSee('Exclude updates');
+            ->assertSee('aria-label="Deactivate"', false)
+            ->assertSee('aria-label="Exclude from updates"', false);
     }
 
     public function test_update_category_skips_excluded_items(): void
@@ -225,8 +225,8 @@ class SiteActionsTest extends TestCase
         $this->get($this->viewUrl($site))
             ->assertOk()
             ->assertSee('Deactivated ✓')
-            ->assertSee('Activate')
-            ->assertSee('Delete');
+            ->assertSee('aria-label="Activate"', false)
+            ->assertSee('aria-label="Delete plugin"', false);
     }
 
     public function test_in_flight_statuses_hide_action_buttons(): void
@@ -253,8 +253,8 @@ class SiteActionsTest extends TestCase
         $this->get($this->viewUrl($site))
             ->assertOk()
             ->assertSee('Deactivating…')
-            ->assertDontSee('Deactivate</button>', false)
-            ->assertDontSee('Delete</button>', false);
+            ->assertDontSee('aria-label="Deactivate"', false)
+            ->assertDontSee('aria-label="Delete plugin"', false);
     }
 
     public function test_non_admin_members_can_browse_sites_and_projects(): void

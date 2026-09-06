@@ -564,6 +564,7 @@ class ConnectorProtocolTest extends TestCase
 
         Http::fake([
             'https://piggyback.test' => Http::response('hello', 200),
+            '*' => Http::response('ok', 200),
         ]);
 
         [$site, $keyPair] = $this->pairedSite();

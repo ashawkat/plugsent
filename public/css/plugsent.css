@@ -664,3 +664,30 @@ body {
     background: #7f1d1d;
     color: #fecaca;
 }
+
+/* Icon-only action buttons (site inventory rows) */
+.plugsent-btn-icon {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.plugsent-btn-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.plugsent-btn-icon-danger:hover {
+    background: #fee2e2;
+    border-color: #f87171;
+    color: #991b1b;
+}
+
+.dark .plugsent-btn-icon-danger:hover {
+    background: #7f1d1d;
+    border-color: #b91c1c;
+    color: #fecaca;
+}
