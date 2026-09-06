@@ -37,7 +37,7 @@ class ProcessInventoryResult
             }
         }
 
-        return $site->getConnection()->transaction(function () use ($site, $rows): int {
+        $count = $site->getConnection()->transaction(function () use ($site, $rows): int {
             InventoryItem::query()->where('site_id', $site->getKey())->delete();
 
             $timestamp = now();
@@ -51,5 +51,11 @@ class ProcessInventoryResult
 
             return count($rows);
         });
+
+        // Fresh inventory arrives unvetted; match it against the synced
+        // vulnerability feed right away.
+        app(MatchInventoryVulnerabilities::class)($site);
+
+        return $count;
     }
 }

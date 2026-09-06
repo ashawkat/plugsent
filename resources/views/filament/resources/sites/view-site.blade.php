@@ -212,6 +212,13 @@
                                     <span class="plugsent-state plugsent-state-{{ $item->active ? 'active' : 'inactive' }}">
                                         {{ $item->active ? 'active' : 'inactive' }}
                                     </span>
+                                    @if(($item->vuln_count ?? 0) > 0)
+                                        @php $vulnTitles = $this->vulnerabilityTitlesFor($item); @endphp
+                                        <span class="plugsent-state plugsent-state-down"
+                                              title="{{ $vulnTitles ? \Illuminate\Support\Str::limit($vulnTitles, 200) : 'Known vulnerabilities' }}">
+                                            ⚠ {{ $item->vuln_count }} vulnerable
+                                        </span>
+                                    @endif
                                 </td>
                                 <td class="plugsent-cell-actions">
                                     @if($connected && $item->update_available && ! $inFlight && ! $isExcluded)

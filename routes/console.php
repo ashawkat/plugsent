@@ -12,3 +12,7 @@ Artisan::command('inspire', function () {
 // cron runs `php artisan schedule:run` every minute; withoutOverlapping
 // guards against a slow batch of checks overlapping the next minute.
 Schedule::command('uptime:check')->everyMinute()->withoutOverlapping();
+
+// The vulnerability feed is large and changes slowly — a weekly sync plus
+// the manual "Sync now" button on the Settings page is plenty.
+Schedule::command('vuln:sync')->weeklyOn(1, '3:00');

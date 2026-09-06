@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Support\AppSettings;
 use App\Support\MailSettings;
 use BackedEnum;
 use Filament\Notifications\Notification;
@@ -38,6 +39,8 @@ class Settings extends Page
 
     public ?string $testEmail = null;
 
+    public ?string $wfApiKey = null;
+
     public function mount(): void
     {
         $settings = app(MailSettings::class);
@@ -53,8 +56,9 @@ class Settings extends Page
         $this->fromAddress = $all['mail_from_address'] ?: null;
         $this->fromName = $all['mail_from_name'] ?: null;
 
-        // The secret never round-trips to the browser; blank means "keep".
+        // Secrets never round-trip to the browser; blank means "keep".
         $this->password = null;
+        $this->wfApiKey = null;
     }
 
     public static function canAccess(): bool
@@ -77,6 +81,60 @@ class Settings extends Page
     public function mailSmtpConfigured(): bool
     {
         return app(MailSettings::class)->isSmtpConfigured();
+    }
+
+    /**
+     * Save the Wordfence API key (encrypted). Blank input keeps the
+     * existing key; "remove" clears it.
+     */
+    public function saveVulnKey(): void
+    {
+        $settings = app(AppSettings::class);
+
+        if (filled($this->wfApiKey)) {
+            $settings->put(AppSettings::WORDFENCE_API_KEY, trim($this->wfApiKey), encrypt: true);
+
+            Notification::make()
+                ->title('API key saved')
+                ->body('Use "Sync now" to pull the vulnerability feed.')
+                ->success()
+                ->send();
+        } else {
+            $settings->put(AppSettings::WORDFENCE_API_KEY, null);
+
+            Notification::make()
+                ->title('API key removed')
+                ->success()
+                ->send();
+        }
+
+        $this->wfApiKey = null;
+    }
+
+    public function syncVulnerabilities(): void
+    {
+        try {
+            $result = app(SyncVulnerabilityFeed::class)();
+        } catch (Throwable $e) {
+            Notification::make()
+                ->title('Vulnerability sync failed')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        Notification::make()
+            ->title('Vulnerability feed synced')
+            ->body("{$result['stored']} record(s) stored from {$result['pages']} page(s); inventory re-matched.")
+            ->success()
+            ->send();
+    }
+
+    public function vulnKeySaved(): bool
+    {
+        return filled(app(AppSettings::class)->get(AppSettings::WORDFENCE_API_KEY));
     }
 
     public function save(): void

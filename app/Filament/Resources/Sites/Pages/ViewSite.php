@@ -9,6 +9,7 @@ use App\Models\Site;
 use App\Models\SiteCommand;
 use App\Models\UpdateExclusion;
 use App\Models\UpdateRun;
+use App\Models\Vulnerability;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
@@ -477,6 +478,26 @@ class ViewSite extends Page
             SiteCommand::STATUS_FAILED => 'Update failed',
             default => null,
         };
+    }
+
+    /**
+     * Human-readable summary of known vulnerabilities for an item.
+     */
+    public function vulnerabilityTitlesFor(InventoryItem $item): ?string
+    {
+        $titles = Vulnerability::query()
+            ->where('software_type', $item->context)
+            ->where('software_slug', $item->slug)
+            ->orderByDesc('cvss')
+            ->limit(3)
+            ->pluck('title')
+            ->all();
+
+        if ($titles === []) {
+            return null;
+        }
+
+        return implode(' · ', array_map(fn (string $title) => Str::limit($title, 80), $titles));
     }
 
     /**

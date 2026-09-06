@@ -39,6 +39,12 @@ class SitesTable
                     ->badge()
                     ->color(fn (int $state): string => $state > 0 ? 'warning' : 'success')
                     ->formatStateUsing(fn (int $state): string => $state > 0 ? "{$state} pending" : 'Up to date'),
+                TextColumn::make('vulnerabilities')
+                    ->label('Vulnerabilities')
+                    ->badge()
+                    ->state(fn (Site $record): int => (int) $record->inventory()->sum('vuln_count'))
+                    ->color(fn (int $state): string => $state > 0 ? 'danger' : 'gray')
+                    ->formatStateUsing(fn (int $state): string => $state > 0 ? "{$state} vulnerable" : 'None known'),
                 TextColumn::make('uptime_status')
                     ->label('Uptime')
                     ->badge()

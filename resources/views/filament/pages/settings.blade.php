@@ -96,6 +96,31 @@
         </p>
     </div>
 
+    {{-- Vulnerability feed --}}
+    <div class="plugsent-category">
+        <div class="plugsent-category-head">
+            <h2>Vulnerability feed</h2>
+        </div>
+        <div class="plugsent-invite-form">
+            <input type="password" class="plugsent-input" placeholder="Wordfence API key {{ $this->vulnKeySaved() ? '(saved)' : '' }}"
+                   wire:model.lazy="wfApiKey" />
+            <button type="button" class="plugsent-btn plugsent-btn-primary" wire:click="saveVulnKey">
+                Save API key
+            </button>
+            <button type="button" class="plugsent-btn" wire:click="syncVulnerabilities"
+                    wire:loading.attr="disabled">
+                Sync now
+            </button>
+        </div>
+        <p class="plugsent-note plugsent-card-body">
+            Vulnerability data comes from the free
+            <a href="https://www.wordfence.com/threat-intel/vulnerabilities/" target="_blank" rel="noopener">Wordfence Intelligence</a>
+            database. Grab a free API key from your wordfence.com account and paste it above —
+            the key is stored encrypted. After a sync, every plugin/theme in your inventory is
+            checked against the feed (re-run automatically whenever a site reports new inventory).
+        </p>
+    </div>
+
     {{-- Test email --}}
     <div class="plugsent-category">
         <div class="plugsent-category-head">
