@@ -115,9 +115,13 @@
         <p class="plugsent-note plugsent-card-body">
             Vulnerability data comes from the free
             <a href="https://www.wordfence.com/threat-intel/vulnerabilities/" target="_blank" rel="noopener">Wordfence Intelligence</a>
-            database. Grab a free API key from your wordfence.com account and paste it above —
-            the key is stored encrypted. After a sync, every plugin/theme in your inventory is
-            checked against the feed (re-run automatically whenever a site reports new inventory).
+            database. To get a key: <strong>1)</strong> create/sign in to a free account at
+            <a href="https://login.wordfence.com/" target="_blank" rel="noopener">login.wordfence.com</a>
+            → <strong>2)</strong> open your account dashboard → <strong>Integrations</strong> →
+            <strong>3)</strong> generate a Wordfence Intelligence API key and paste it above
+            (it is stored encrypted — note this is not the Premium "license key"). After a sync,
+            every plugin/theme in your inventory is checked against the feed (re-run automatically
+            whenever a site reports new inventory).
         </p>
     </div>
 
