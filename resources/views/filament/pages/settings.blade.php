@@ -101,6 +101,18 @@
         <div class="plugsent-category-head">
             <h2>Vulnerability feed</h2>
         </div>
+        @php $vulnStatus = $this->vulnSyncStatus(); @endphp
+        @if(($vulnStatus['state'] ?? 'idle') !== 'idle')
+            <p class="plugsent-note plugsent-card-body">
+                @if($vulnStatus['state'] === 'running')
+                    ⟳ Sync in progress — downloading the feed (this can take a minute or two)…
+                @elseif($vulnStatus['state'] === 'success')
+                    ✓ Last sync stored {{ $vulnStatus['stored'] }} record(s); inventory re-matched.
+                @elseif($vulnStatus['state'] === 'failed')
+                    ✕ Last sync failed: {{ $vulnStatus['message'] }}
+                @endif
+            </p>
+        @endif
         <div class="plugsent-invite-form">
             <input type="password" class="plugsent-input" placeholder="Wordfence API key {{ $this->vulnKeySaved() ? '(saved)' : '' }}"
                    wire:model.lazy="wfApiKey" />
@@ -108,7 +120,11 @@
                 Save API key
             </button>
             @php $cooldown = $this->vulnSyncCooldownRemaining(); @endphp
-            @if($cooldown > 0)
+            @if(($vulnStatus['state'] ?? null) === 'running')
+                <button type="button" class="plugsent-btn" disabled>
+                    Sync in progress…
+                </button>
+            @elseif($cooldown > 0)
                 <button type="button" class="plugsent-btn" disabled
                         title="Cooling down — each sync spends your Wordfence API key's request quota.">
                     Sync available in {{ $cooldown }}s

@@ -2,7 +2,7 @@
 
 namespace App\Filament\Pages;
 
-use App\Actions\SyncVulnerabilityFeed;
+use App\Actions\StartVulnerabilitySync;
 use App\Support\AppSettings;
 use App\Support\MailSettings;
 use BackedEnum;
@@ -114,23 +114,18 @@ class Settings extends Page
 
     public function syncVulnerabilities(): void
     {
-        try {
-            $result = app(SyncVulnerabilityFeed::class)();
-        } catch (Throwable $e) {
-            Notification::make()
-                ->title('Vulnerability sync failed')
-                ->body($e->getMessage())
-                ->danger()
-                ->send();
-
-            return;
-        }
+        app(StartVulnerabilitySync::class)();
 
         Notification::make()
-            ->title('Vulnerability feed synced')
-            ->body("{$result['stored']} record(s) stored from {$result['pages']} page(s); inventory re-matched.")
+            ->title('Vulnerability sync started')
+            ->body('The feed downloads in the background and is large — this page shows progress and the result when it finishes.')
             ->success()
             ->send();
+    }
+
+    public function vulnSyncStatus(): array
+    {
+        return app(StartVulnerabilitySync::class)->status();
     }
 
     public function vulnKeySaved(): bool
