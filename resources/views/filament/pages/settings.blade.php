@@ -97,7 +97,7 @@
     </div>
 
     {{-- Vulnerability feed --}}
-    <div class="plugsent-category">
+    <div class="plugsent-category" wire:poll.5s>
         <div class="plugsent-category-head">
             <h2>Vulnerability feed</h2>
         </div>
@@ -107,10 +107,18 @@
             <button type="button" class="plugsent-btn plugsent-btn-primary" wire:click="saveVulnKey">
                 Save API key
             </button>
-            <button type="button" class="plugsent-btn" wire:click="syncVulnerabilities"
-                    wire:loading.attr="disabled">
-                Sync now
-            </button>
+            @php $cooldown = $this->vulnSyncCooldownRemaining(); @endphp
+            @if($cooldown > 0)
+                <button type="button" class="plugsent-btn" disabled
+                        title="Cooling down — each sync spends your Wordfence API key's request quota.">
+                    Sync available in {{ $cooldown }}s
+                </button>
+            @else
+                <button type="button" class="plugsent-btn plugsent-btn-primary" wire:click="syncVulnerabilities"
+                        wire:loading.attr="disabled">
+                    Sync now
+                </button>
+            @endif
         </div>
         <p class="plugsent-note plugsent-card-body">
             Vulnerability data comes from the free

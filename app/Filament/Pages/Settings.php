@@ -138,6 +138,19 @@ class Settings extends Page
         return filled(app(AppSettings::class)->get(AppSettings::WORDFENCE_API_KEY));
     }
 
+    /**
+     * Seconds left before another feed sync attempt is allowed. Every
+     * attempt spends API quota, so the button stays disabled until the
+     * cooldown clears.
+     */
+    public function vulnSyncCooldownRemaining(): int
+    {
+        $lastAttempt = (int) app(AppSettings::class)->get('vuln_last_attempt', '0');
+        $cooldown = (int) config('plugsent.vuln_sync_cooldown_seconds', 3600);
+
+        return (int) max(0, $cooldown - (now()->timestamp - $lastAttempt));
+    }
+
     public function save(): void
     {
         $this->validate([
