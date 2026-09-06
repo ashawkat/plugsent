@@ -26,6 +26,23 @@ channel — no firewall rules, no inbound ports, and never your WordPress admin 
 |---|---|
 | ![Plugsent login](docs/screenshots/login.png) | ![Plugsent dashboard](docs/screenshots/dashboard.png) |
 
+## What's new
+
+- **Jul 2026 → Sep 2026** — the platform grew from "inventory viewer" to a real manager:
+  - **Safe updates** — every plugin/theme update runs the full pipeline: files + database restore
+    point → update → site smoke test → **automatic rollback** if the site stops answering. Plus a
+    manual **Restore backup** action for updates that "succeed" but misbehave.
+  - **Uptime monitoring** — every enabled site is checked every 5 minutes (no cron needed — checks
+    piggyback on connector check-ins); downtime incidents open after two consecutive failures and
+    the workspace gets 🔴 down / 🟢 recovered emails through the built-in SMTP settings.
+  - **Plugin/theme management** — activate, deactivate, delete, switch themes, and per-item
+    "exclude from updates" straight from the dashboard. The connector itself can never be managed
+    remotely.
+  - **Teams** — email invitations with a one-step join (invitees just pick a name and password),
+    workspace + per-project roles.
+  - **Settings UI** — configure SMTP (with test email) from the dashboard; values override `.env`.
+  - **Admin quick login** — one-click single-use magic login into wp-admin.
+
 ## Features (working today)
 
 - **Workspace-per-signup tenancy** — every signup gets an isolated workspace with slug URLs
@@ -36,6 +53,12 @@ channel — no firewall rules, no inbound ports, and never your WordPress admin 
   the [connector plugin](https://github.com/ashawkat/plugsent-connector), done.
 - **Live inventory** — WordPress, plugin, and theme versions with update availability, refreshed
   on every check-in.
+- **Safe updates** — restore point (files + streamed database dump) → update → smoke test →
+  automatic rollback. Core updates stay plain; old connectors keep the classic update path.
+- **Plugin/theme actions** — activate, deactivate, delete, theme switching, update exclusions,
+  manual restore — with capability-based UI (old connectors simply don't show new buttons).
+- **Uptime monitoring** — scheduled external checks, downtime incidents, email alerts, and a
+  pause/resume toggle per site.
 - **Connector protocol v1** — HMAC-SHA256 signed requests, timestamp tolerance, nonce replay
   protection, instant revocation, 120 req/min throttling.
 - **Revocable by design** — "Revoke access" kills the site's credentials on its next poll;
@@ -103,16 +126,16 @@ php scripts/simulate-site.php http://127.0.0.1:8000 <pairing-code>
 |---|---|---|
 | 0 — Skeleton | ✅ shipped | Laravel + Filament, tenancy, projects/sites, policies |
 | 1 — Connector MVP | ✅ shipped | Pairing, signed poll loop, inventory, connect UI |
-| 2 — Safe updates | planned | Restore point → one plugin at a time → smoke test → auto-rollback |
-| 3 — Safety net | planned | PHP error stream, uptime + incidents, vulnerability feed |
-| 4 — Teams & MCP | planned | Project-level RBAC UI, MCP gateway, consent-gated support access |
+| 2 — Safe updates | ✅ shipped | Restore point → update → smoke test → auto-rollback, update audit trail |
+| 3 — Safety net | 🟡 half shipped | ✅ uptime + incidents + email alerts · ⬜ PHP error stream, vulnerability feed |
+| 4 — Teams & MCP | 🟡 half shipped | ✅ invitations, roles, project-level RBAC · ⬜ MCP gateway, public API |
 | 5 — AI | planned | Chat over your fleet, update risk summaries, weekly digests |
 | 6 — Mobile | planned | PWA first, then an Expo app on the same API |
 
 ## Development
 
 ```bash
-php artisan test        # 34 tests: protocol, signing, isolation, Plugin Check audit
+php artisan test        # 81 tests: protocol, signing, isolation, uptime, safe updates, Plugin Check audit
 vendor/bin/pint         # code style
 ```
 
