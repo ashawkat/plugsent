@@ -88,9 +88,12 @@ class SitesTable
                     ),
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()
+                    ->iconButton()
+                    ->icon('heroicon-o-pencil-square'),
                 Action::make('refreshInventory')
                     ->label('Refresh inventory')
+                    ->iconButton()
                     ->icon('heroicon-o-arrow-path')
                     ->visible(fn (Site $record): bool => $record->isConnected())
                     ->action(function (Site $record): void {
@@ -104,6 +107,7 @@ class SitesTable
                     }),
                 Action::make('revoke')
                     ->label('Revoke access')
+                    ->iconButton()
                     ->icon('heroicon-o-lock-closed')
                     ->color('danger')
                     ->requiresConfirmation()
@@ -118,7 +122,8 @@ class SitesTable
                             ->warning()
                             ->send();
                     }),
-                DeleteAction::make(),
+                DeleteAction::make()
+                    ->iconButton(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

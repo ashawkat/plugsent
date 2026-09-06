@@ -33,7 +33,9 @@ class ProjectsTable
                 //
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()
+                    ->iconButton()
+                    ->icon('heroicon-o-pencil-square'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
