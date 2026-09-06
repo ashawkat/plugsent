@@ -34,4 +34,15 @@ return [
     | purely from `schedule:run`.
     */
     'uptime_piggyback' => env('PLUGSENT_UPTIME_PIGGYBACK', true),
+
+    /*
+    |------------------------------------------------------------------
+    | Vulnerability feed
+    |------------------------------------------------------------------
+    |
+    | Minimum seconds between feed sync attempts — every request counts
+    | against the (free) Wordfence API key's quota, so failed syncs are
+    | cooldown-gated instead of being retried in a loop.
+    */
+    'vuln_sync_cooldown_seconds' => env('PLUGSENT_VULN_SYNC_COOLDOWN', 600),
 ];
