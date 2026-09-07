@@ -16,3 +16,6 @@ Schedule::command('uptime:check')->everyMinute()->withoutOverlapping();
 // The vulnerability feed is large and changes slowly — a weekly sync plus
 // the manual "Sync now" button on the Settings page is plenty.
 Schedule::command('vuln:sync')->weeklyOn(1, '3:00');
+
+// The once-a-day "updates available" digest, first thing in the morning.
+Schedule::command('plugsent:updates-digest')->dailyAt('08:00');

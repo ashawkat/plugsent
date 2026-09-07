@@ -2,6 +2,7 @@
 
 namespace App\Actions;
 
+use App\Jobs\SecurityAlert;
 use App\Models\InventoryItem;
 use App\Models\Site;
 use App\Models\Vulnerability;
@@ -19,7 +20,7 @@ class MatchInventoryVulnerabilities
             ->whereIn('context', [InventoryItem::CONTEXT_PLUGIN, InventoryItem::CONTEXT_THEME])
             ->when($site !== null, fn ($query) => $query->where('site_id', $site->getKey()))
             ->whereNotNull('version')
-            ->get(['id', 'context', 'slug', 'version', 'site_id']);
+            ->get(['id', 'context', 'slug', 'version', 'site_id', 'vuln_count']);
 
         foreach ($items as $item) {
             $count = Vulnerability::query()
@@ -30,6 +31,13 @@ class MatchInventoryVulnerabilities
                 ->count();
 
             InventoryItem::query()->whereKey($item->getKey())->update(['vuln_count' => $count]);
+
+            // Exposure grew (new vulnerable software, or a newly published
+            // vulnerability now covering an installed version) — alert the
+            // workspace admins, throttled to once a day per site.
+            if ($count > (int) $item->vuln_count) {
+                SecurityAlert::dispatch($item->site_id);
+            }
         }
     }
 }

@@ -38,6 +38,8 @@ class AdminPanelProvider extends PanelProvider
             ->login()
             ->registration(Register::class)
             ->passwordReset()
+            ->multiFactorAuthentication(\App\Filament\Auth\MultiFactor\TotpAuthentication::make())
+            ->revealablePasswords()
             ->tenant(Workspace::class, slugAttribute: 'slug')
             ->colors([
                 'primary' => Color::Indigo,

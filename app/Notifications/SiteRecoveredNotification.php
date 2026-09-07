@@ -33,9 +33,22 @@ class SiteRecoveredNotification extends Notification
 
         return (new MailMessage)
             ->subject('🟢 '.$this->site->name.' is back up')
-            ->greeting($this->site->name.' recovered')
-            ->line('**'.$this->site->url.'** is responding again.')
-            ->line('It was down for '.$downFor.' ('.$this->incident->failure_count.' failed checks).')
-            ->action('Open in Plugsent', url('/app/'.$this->site->workspace->slug.'/sites/'.$this->site->getKey()));
+            ->view('mail.plugsent', [
+                'bannerColor' => '#16a34a',
+                'bannerLabel' => 'Recovered',
+                'title' => $this->site->name.' is responding again',
+                'intro' => [
+                    '<strong>'.$this->site->url.'</strong> answered the uptime check again after being down.',
+                ],
+                'rows' => [
+                    ['label' => 'Site', 'value' => $this->site->name],
+                    ['label' => 'Went down', 'value' => $this->incident->started_at->format('M j, H:i')],
+                    ['label' => 'Recovered', 'value' => $this->incident->ended_at?->format('M j, H:i') ?? '—'],
+                    ['label' => 'Downtime', 'value' => $downFor.' ('.$this->incident->failure_count.' failed checks)'],
+                ],
+                'buttonUrl' => url('/app/'.$this->site->workspace->slug.'/sites/'.$this->site->getKey().'?tab=uptime'),
+                'buttonText' => 'Open uptime details',
+                'footNote' => 'You receive this because you are a workspace admin and the site has uptime monitoring enabled.',
+            ]);
     }
 }

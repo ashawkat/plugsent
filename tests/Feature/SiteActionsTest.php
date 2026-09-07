@@ -41,7 +41,7 @@ class SiteActionsTest extends TestCase
         $this->actingAs($owner);
         Filament::setTenant($site->workspace);
 
-        Livewire::test(ViewSite::class, ['record' => $site])
+        Livewire::withQueryParams(['tab' => 'plugins'])->test(ViewSite::class, ['record' => $site])
             ->call('requestAction', 'plugin.activate', 'hello-dolly')
             ->assertHasNoErrors();
 
@@ -58,7 +58,7 @@ class SiteActionsTest extends TestCase
 
         // Non-whitelisted types are dropped, never queued.
         $before = SiteCommand::query()->count();
-        Livewire::test(ViewSite::class, ['record' => $site])
+        Livewire::withQueryParams(['tab' => 'plugins'])->test(ViewSite::class, ['record' => $site])
             ->call('requestAction', 'plugin.nuke', 'hello-dolly');
 
         $this->assertSame($before, SiteCommand::query()->count());
@@ -76,7 +76,7 @@ class SiteActionsTest extends TestCase
         Filament::setTenant($site->workspace);
 
         // Editors may activate…
-        Livewire::test(ViewSite::class, ['record' => $site])
+        Livewire::withQueryParams(['tab' => 'plugins'])->test(ViewSite::class, ['record' => $site])
             ->call('requestAction', 'plugin.activate', 'hello-dolly')
             ->assertHasNoErrors();
 
@@ -92,7 +92,7 @@ class SiteActionsTest extends TestCase
 
         // Owners (workspace admins) can delete.
         $this->actingAs($owner);
-        Livewire::test(ViewSite::class, ['record' => $site])
+        Livewire::withQueryParams(['tab' => 'plugins'])->test(ViewSite::class, ['record' => $site])
             ->call('requestAction', 'plugin.delete', 'hello-dolly')
             ->assertHasNoErrors();
 
@@ -127,7 +127,7 @@ class SiteActionsTest extends TestCase
         // Excluding from updates is platform-side and needs no connector
         // support, so its toggle shows for every connected site. Only the
         // management buttons are capability-gated.
-        $this->get($this->viewUrl($oldConnector))
+        $this->get($this->viewUrl($oldConnector).'?tab=plugins')
             ->assertOk()
             ->assertDontSee('aria-label="Deactivate"', false)
             ->assertSee('aria-label="Exclude from updates"', false);
@@ -136,7 +136,7 @@ class SiteActionsTest extends TestCase
         // real user path: open the workspace, then the site page.
         $this->get('/app/'.$newConnector->workspace->slug)->assertOk();
 
-        $this->get($this->viewUrl($newConnector))
+        $this->get($this->viewUrl($newConnector).'?tab=plugins')
             ->assertOk()
             ->assertSee('aria-label="Deactivate"', false)
             ->assertSee('aria-label="Exclude from updates"', false);
@@ -160,7 +160,7 @@ class SiteActionsTest extends TestCase
             'update_available' => true, 'update_version' => '1.8', 'active' => false,
         ]);
 
-        $component = Livewire::test(ViewSite::class, ['record' => $site]);
+        $component = Livewire::withQueryParams(['tab' => 'plugins'])->test(ViewSite::class, ['record' => $site]);
         $component->call('toggleUpdateExclusion', 'plugin', 'hello-dolly');
 
         $this->assertDatabaseHas('update_exclusions', [
@@ -222,7 +222,7 @@ class SiteActionsTest extends TestCase
 
         $this->actingAs($owner);
 
-        $this->get($this->viewUrl($site))
+        $this->get($this->viewUrl($site).'?tab=plugins')
             ->assertOk()
             ->assertSee('Deactivated ✓')
             ->assertSee('aria-label="Activate"', false)
@@ -250,7 +250,7 @@ class SiteActionsTest extends TestCase
 
         $this->actingAs($owner);
 
-        $this->get($this->viewUrl($site))
+        $this->get($this->viewUrl($site).'?tab=plugins')
             ->assertOk()
             ->assertSee('Deactivating…')
             ->assertDontSee('aria-label="Deactivate"', false)
@@ -269,7 +269,7 @@ class SiteActionsTest extends TestCase
 
         // The member visibility branch of both listings used to fatal on an
         // undefined closure variable — every invited member hit this.
-        $this->get($this->viewUrl($site))->assertOk();
+        $this->get($this->viewUrl($site).'?tab=plugins')->assertOk();
         $this->get('/app/'.$site->workspace->slug.'/projects')->assertOk();
     }
 
@@ -288,7 +288,7 @@ class SiteActionsTest extends TestCase
             'update_available' => true, 'update_version' => '1.1', 'active' => true,
         ]);
 
-        Livewire::test(ViewSite::class, ['record' => $safeCapable])
+        Livewire::withQueryParams(['tab' => 'plugins'])->test(ViewSite::class, ['record' => $safeCapable])
             ->call('requestUpdate', 'plugin', 'akismet');
 
         $this->assertDatabaseHas('site_commands', [
@@ -302,7 +302,7 @@ class SiteActionsTest extends TestCase
             'update_available' => true, 'update_version' => '1.1', 'active' => true,
         ]);
 
-        Livewire::test(ViewSite::class, ['record' => $oldConnector])
+        Livewire::withQueryParams(['tab' => 'plugins'])->test(ViewSite::class, ['record' => $oldConnector])
             ->call('requestUpdate', 'plugin', 'akismet');
 
         $this->assertDatabaseHas('site_commands', [
@@ -349,7 +349,7 @@ class SiteActionsTest extends TestCase
 
         $this->actingAs($owner);
 
-        $this->get($this->viewUrl($site))
+        $this->get($this->viewUrl($site).'?tab=plugins')
             ->assertOk()
             ->assertSee('Rolled back ⚠')
             ->assertSee('Restore backup');
@@ -360,7 +360,7 @@ class SiteActionsTest extends TestCase
         $site->project->members()->attach($editor, ['role' => 'editor']);
         $this->actingAs($editor);
 
-        $this->get($this->viewUrl($site))
+        $this->get($this->viewUrl($site).'?tab=plugins')
             ->assertOk()
             ->assertDontSee('Restore backup</button>', false);
     }
