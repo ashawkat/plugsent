@@ -35,13 +35,13 @@
             <span class="fi-badge-label">{{ $this->site->status }}</span>
         </span>
 
-        <div class="plugsent-switcher" x-data="siteSwitcher({ items: @json($this->switcherItems()), tab: '{{ $tab }}', current: {{ $this->site->getKey() }} })" @click.outside="open = false" @keydown.escape="open = false">
+        <div class="plugsent-switcher" x-data="siteSwitcher" @click.outside="open = false" @keydown.escape="open = false">
             <button type="button" class="plugsent-switcher-btn" @click="open = !open">
                 {{ $this->site->name }}
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="plugsent-switcher-chev"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
             </button>
             <div class="plugsent-switcher-menu" x-show="open" x-cloak x-transition.opacity.duration.100ms>
-                <input type="text" class="plugsent-switcher-search" placeholder="Find site…" x-model="q" autofocus>
+                <input type="text" class="plugsent-switcher-search" placeholder="Find site…" x-model="q">
                 <div class="plugsent-switcher-list">
                     <template x-for="s in shown" :key="s.id">
                         <a :href="s.view_url + '?tab=' + tab"
@@ -768,13 +768,22 @@
     @endif
 
     <script>
+        // JSON is passed via a script variable: inlining the JSON config
+        // inside an HTML attribute breaks the attribute when values
+        // contain quotes.
+        window.plugsentSwitcher = {!! json_encode([
+            'items' => $this->switcherItems(),
+            'tab' => $tab,
+            'current' => (int) $this->site->getKey(),
+        ], JSON_HEX_TAG | JSON_HEX_AMP) !!};
+
         document.addEventListener('alpine:init', () => {
-            Alpine.data('siteSwitcher', (config) => ({
+            Alpine.data('siteSwitcher', () => ({
                 open: false,
                 q: '',
-                tab: config.tab,
-                current: config.current,
-                items: config.items,
+                tab: window.plugsentSwitcher.tab,
+                current: window.plugsentSwitcher.current,
+                items: window.plugsentSwitcher.items,
                 get shown() {
                     const q = this.q.trim().toLowerCase();
                     if (q === '') {
