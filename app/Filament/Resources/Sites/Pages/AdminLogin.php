@@ -8,6 +8,7 @@ use App\Models\Site;
 use App\Models\SiteCommand;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 
 class AdminLogin extends Page
@@ -89,7 +90,14 @@ class AdminLogin extends Page
             $url = $command->result['data']['admin_login']['url'] ?? null;
 
             if (filled($url)) {
-                $this->redirect($url);
+                // The magic URL is single-use, and the 2s poll can fire
+                // again while the browser is still committing the first
+                // redirect — the second navigation would eat the token and
+                // land on the site's "no pending link" error. Let exactly
+                // one poll claim the redirect.
+                if (Cache::add('admin-login-redirect:'.$command->getKey(), true, 120)) {
+                    $this->redirect($url);
+                }
             }
 
             return;
