@@ -386,7 +386,7 @@
                                     @if(($item->vuln_count ?? 0) > 0)
                                         <button type="button" class="plugsent-state plugsent-state-down plugsent-vuln-badge"
                                                 title="View vulnerability details"
-                                                wire:click="openVulnerabilities('{{ $context }}', '{{ $item->slug }}', @js($item->name), {{ $item->update_available ? 'true' : 'false' }})">
+                                                wire:click="openVulnerabilities('{{ $context }}', '{{ $item->slug }}', @js($item->name), {{ $item->update_available ? 'true' : 'false' }}, @js($item->version))">
                                             ⚠ {{ $item->vuln_count }} vulnerable
                                         </button>
                                     @endif
@@ -608,7 +608,7 @@
                                     </td>
                                     <td class="plugsent-cell-actions">
                                         <button type="button" class="plugsent-btn plugsent-btn-sm"
-                                                wire:click="openVulnerabilities('{{ $item->context }}', '{{ $item->slug }}', @js($item->name), {{ $item->update_available ? 'true' : 'false' }})">
+                                                wire:click="openVulnerabilities('{{ $item->context }}', '{{ $item->slug }}', @js($item->name), {{ $item->update_available ? 'true' : 'false' }}, @js($item->version))">
                                             Details
                                         </button>
                                     </td>

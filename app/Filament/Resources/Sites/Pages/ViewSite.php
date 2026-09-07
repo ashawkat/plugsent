@@ -746,25 +746,33 @@ class ViewSite extends Page
     }
 
     /**
-     * All known vulnerabilities matching a software slug, most severe first.
+     * Known vulnerabilities matching a software slug whose affected range
+     * covers the installed version, most severe first.
      */
-    public function vulnerabilitiesFor(string $context, string $slug): Collection
+    public function vulnerabilitiesFor(string $context, string $slug, ?string $version = null): Collection
     {
-        return Vulnerability::query()
+        $vulns = Vulnerability::query()
             ->where('software_type', $context)
             ->where('software_slug', $slug)
             ->orderByDesc('cvss')
             ->orderByDesc('published_at')
             ->get();
+
+        if ($version !== null) {
+            $vulns = $vulns->filter(fn (Vulnerability $vuln) => $vuln->affectsVersion($version));
+        }
+
+        return $vulns->values();
     }
 
-    public function openVulnerabilities(string $context, string $slug, string $name, bool $updateAvailable): void
+    public function openVulnerabilities(string $context, string $slug, string $name, bool $updateAvailable, string $version = ''): void
     {
         $this->vulnDetail = [
             'context' => $context,
             'slug' => $slug,
             'name' => $name,
             'update_available' => $updateAvailable,
+            'version' => $version,
         ];
     }
 
