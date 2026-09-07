@@ -247,7 +247,7 @@
     {{-- ============ Plugins / Themes / Core ============ --}}
     @if(in_array($tab, ['plugins', 'themes', 'core'], true))
         @php
-            $context = $tab;
+            $context = ['plugins' => 'plugin', 'themes' => 'theme', 'core' => 'core'][$tab];
             $label = ['plugins' => 'Plugins', 'themes' => 'Themes', 'core' => 'WordPress core'][$tab];
             $items = $this->getInventoryFor($context);
             $pending = $items->where('update_available', true)->count();

@@ -1131,3 +1131,53 @@ body {
     font-weight: 600;
     color: #6b7280;
 }
+
+/* Breathing room: overview cards and security section */
+.plugsent-overview-grid .plugsent-category {
+    padding: 1rem 1.25rem 1.25rem;
+}
+
+.plugsent-overview-grid .plugsent-overview-card,
+.plugsent-overview-grid .plugsent-security-list {
+    padding-top: 0.5rem;
+}
+
+.plugsent-overview-grid .plugsent-security-list li {
+    padding: 0.625rem 0.75rem;
+}
+
+.plugsent-category > .plugsent-security-grid {
+    padding: 1.25rem 0.25rem 0.5rem;
+}
+
+.plugsent-security-grid {
+    gap: 2rem;
+}
+
+.plugsent-security-list li {
+    padding: 0.75rem 1rem;
+    gap: 1rem;
+    margin-bottom: 0.1rem;
+}
+
+.plugsent-security-list {
+    gap: 0.6rem;
+}
+
+.plugsent-security-score {
+    align-self: flex-start;
+    position: sticky;
+    top: 1rem;
+}
+
+.plugsent-security-checks {
+    min-width: 0;
+}
+
+.plugsent-security-hardening .plugsent-security-list li {
+    padding: 0.625rem 0.75rem;
+}
+
+.plugsent-vuln-overlay {
+    backdrop-filter: blur(2px);
+}
