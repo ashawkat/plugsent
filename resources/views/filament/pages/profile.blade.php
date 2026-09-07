@@ -150,7 +150,13 @@
                             or add this secret manually:
                         </p>
                         <p style="margin:0 0 10px;"><code class="plugsent-secret">{{ $pendingSecret }}</code></p>
-                        <div class="plugsent-2fa-qr">{!! $this->qrCodeSvg() !!}</div>
+                        <div class="plugsent-2fa-qr">
+                            @if($this->qrCodeSvg())
+                                <img src="{{ $this->qrCodeSvg() }}" alt="2FA QR code" width="180" height="180">
+                            @else
+                                <p class="plugsent-error">Could not generate the QR code — add the secret above manually.</p>
+                            @endif
+                        </div>
                     </div>
                     <div>
                         <p class="plugsent-note">2. Enter the 6-digit code from the app to confirm and enable 2FA:</p>

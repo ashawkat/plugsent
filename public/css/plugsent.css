@@ -1689,7 +1689,7 @@ body {
     gap: 1.5rem;
 }
 
-.plugsent-2fa-qr svg {
+.plugsent-2fa-qr img {
     width: 180px;
     height: 180px;
     background: #fff;

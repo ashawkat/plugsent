@@ -139,10 +139,11 @@ class Profile extends Page
         );
 
         try {
+            // chillerlan v5 returns a base64 data URI for SVG output,
+            // rendered by the view in an <img> tag.
             return (new \chillerlan\QRCode\QRCode(new \chillerlan\QRCode\QROptions([
                 'outputType' => \chillerlan\QRCode\QRCode::OUTPUT_MARKUP_SVG,
                 'eccLevel' => \chillerlan\QRCode\QRCode::ECC_L,
-                'svgViewBoxSize' => 180,
             ])))->render($uri);
         } catch (Throwable) {
             return null;
