@@ -29,3 +29,6 @@ Thumbs.db
 
 # plugin distribution builds
 /plugsent-connector-*.zip
+
+.zcode/
+public/debug-last-error.txt
