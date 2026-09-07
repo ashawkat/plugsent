@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['workspace_id', 'project_id', 'name', 'url', 'status', 'php_version', 'wp_version', 'last_seen_at', 'tags', 'capabilities', 'connector_version', 'api_key', 'api_key_hash', 'uptime_enabled', 'uptime_status', 'uptime_last_checked_at', 'uptime_last_status_code', 'uptime_last_response_ms', 'uptime_last_error', 'uptime_consecutive_failures'])]
+#[Fillable(['workspace_id', 'project_id', 'name', 'url', 'status', 'php_version', 'wp_version', 'last_seen_at', 'tags', 'capabilities', 'connector_version', 'api_key', 'api_key_hash', 'uptime_enabled', 'uptime_status', 'uptime_last_checked_at', 'uptime_last_status_code', 'uptime_last_response_ms', 'uptime_last_error', 'uptime_consecutive_failures', 'security_facts', 'hardening', 'security_score', 'security_scanned_at'])]
 class Site extends Model
 {
     public const UPTIME_UP = 'up';
@@ -30,6 +30,10 @@ class Site extends Model
             'uptime_last_checked_at' => 'datetime',
             'uptime_last_status_code' => 'integer',
             'uptime_last_response_ms' => 'integer',
+            'security_facts' => 'array',
+            'hardening' => 'array',
+            'security_score' => 'integer',
+            'security_scanned_at' => 'datetime',
         ];
     }
 

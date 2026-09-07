@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Sites\Pages;
 
 use App\Actions\EnqueueSiteCommand;
+use App\Actions\EvaluateSiteSecurity;
 use App\Filament\Resources\Sites\SiteResource;
 use App\Models\InventoryItem;
 use App\Models\Site;
@@ -106,6 +107,8 @@ class ViewSite extends Page
         Gate::authorize('view', $record);
 
         $this->site = $record;
+
+        $this->maybeAutoScan();
     }
 
     public function getTitle(): string
@@ -425,6 +428,114 @@ class ViewSite extends Page
             ->orderByDesc('id')
             ->limit(5)
             ->get();
+    }
+
+    /**
+     * Whether the site's connector can run security scans and hardening.
+     */
+    public function securitySupported(): bool
+    {
+        return $this->site->supportsCommand('security.scan')
+            && $this->site->supportsCommand('security.harden');
+    }
+
+    /**
+     * The checks + score derived from the last scan's facts.
+     *
+     * @return array{checks: array<int, array{key: string, label: string, passed: bool, detail: string, fix: ?string}>, score: int}
+     */
+    public function securityEvaluation(): array
+    {
+        return app(EvaluateSiteSecurity::class)->evaluate($this->site);
+    }
+
+    /**
+     * Whether a security scan is currently queued or running.
+     */
+    public function securityScanInFlight(): bool
+    {
+        return SiteCommand::query()
+            ->where('site_id', $this->site->getKey())
+            ->where('type', 'security.scan')
+            ->whereIn('status', [SiteCommand::STATUS_PENDING, SiteCommand::STATUS_DISPATCHED])
+            ->where('created_at', '>', now()->subMinutes(10))
+            ->exists();
+    }
+
+    /**
+     * Whether a hardening toggle is currently being applied.
+     */
+    public function hardeningInFlight(string $key, bool $enable): bool
+    {
+        return SiteCommand::query()
+            ->where('site_id', $this->site->getKey())
+            ->where('type', 'security.harden')
+            ->whereIn('status', [SiteCommand::STATUS_PENDING, SiteCommand::STATUS_DISPATCHED])
+            ->where('created_at', '>', now()->subMinutes(10))
+            ->get()
+            ->contains(fn (SiteCommand $command) => ($command->payload['key'] ?? null) === $key
+                && (bool) ($command->payload['enable'] ?? false) === $enable);
+    }
+
+    public function runSecurityScan(): void
+    {
+        Gate::authorize('update', $this->site);
+
+        if (! $this->site->isConnected() || ! $this->securitySupported()) {
+            return;
+        }
+
+        app(EnqueueSiteCommand::class)($this->site, 'security.scan');
+
+        Notification::make()
+            ->title('Security scan queued')
+            ->body("{$this->site->name} will report its security facts on its next check-in.")
+            ->success()
+            ->send();
+    }
+
+    /**
+     * Apply or remove one hardening protection on the site. A fresh scan
+     * follows automatically (ResultsController), so the score updates.
+     */
+    public function requestHardening(string $key, bool $enable): void
+    {
+        Gate::authorize('update', $this->site);
+
+        if (! $this->site->isConnected() || ! $this->securitySupported()) {
+            return;
+        }
+
+        app(EnqueueSiteCommand::class)($this->site, 'security.harden', ['key' => $key, 'enable' => $enable]);
+
+        Notification::make()
+            ->title($enable ? 'Hardening queued' : 'Reverting protection queued')
+            ->body("The change applies on the site's next check-in; the security score refreshes right after.")
+            ->success()
+            ->send();
+    }
+
+    /**
+     * Sites running connector 0.13.0+ get a scan automatically when the
+     * last one is missing or stale, so the section is never empty.
+     */
+    private function maybeAutoScan(): void
+    {
+        if (! $this->site->isConnected() || ! $this->securitySupported()) {
+            return;
+        }
+
+        if ($this->securityScanInFlight()) {
+            return;
+        }
+
+        $scannedAt = $this->site->security_scanned_at;
+
+        if ($scannedAt !== null && $scannedAt->gt(now()->subHours(12))) {
+            return;
+        }
+
+        app(EnqueueSiteCommand::class)($this->site, 'security.scan');
     }
 
     /**

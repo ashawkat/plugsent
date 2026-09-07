@@ -120,6 +120,115 @@
         @endif
     </div>
 
+    {{-- Security --}}
+    @php
+        $securitySupported = $this->securitySupported();
+        $scanInFlight = $this->securityScanInFlight();
+        $security = $securitySupported && $this->site->security_scanned_at !== null
+            ? $this->securityEvaluation()
+            : null;
+        $hardening = (array) ($this->site->hardening ?? []);
+        $hardeningLabels = [
+            'hide_version' => 'Hide your WordPress version',
+            'block_user_enum' => 'Block user enumeration',
+            'mask_login_errors' => 'Mask login error messages',
+            'disable_file_editor' => 'Disable the file editor',
+            'security_headers' => 'Add security headers',
+            'disable_xmlrpc' => 'Disable XML-RPC',
+        ];
+    @endphp
+    <div class="plugsent-category" id="security">
+        <div class="plugsent-category-head">
+            <h2>Security</h2>
+            @if($connected && $securitySupported)
+                <button type="button" class="plugsent-btn" wire:click="runSecurityScan" @if($scanInFlight) disabled @endif>
+                    @if($scanInFlight) Scanning… @else Re-scan @endif
+                </button>
+            @endif
+        </div>
+
+        @if(! $securitySupported)
+            <p class="plugsent-empty">
+                This site runs an older Plugsent Connector. Update it to 0.13.0+ on the site to enable
+                security scans and hardening.
+            </p>
+        @elseif($this->site->security_scanned_at === null)
+            <p class="plugsent-empty">
+                No security scan yet. A scan is queued and will complete on the site's next check-in.
+            </p>
+        @else
+            <div class="plugsent-security-grid">
+                <div class="plugsent-security-score">
+                    <span class="plugsent-security-score-num plugsent-security-score-{{ $security['score'] >= 80 ? 'good' : ($security['score'] >= 50 ? 'fair' : 'poor') }}">
+                        {{ $security['score'] }}
+                    </span>
+                    <span class="plugsent-security-score-cap">
+                        /100<br>
+                        <span class="plugsent-muted">scanned {{ $this->site->security_scanned_at->diffForHumans() }}</span>
+                    </span>
+                </div>
+
+                <div class="plugsent-security-checks">
+                    @php($failed = collect($security['checks'])->reject(fn ($c) => $c['passed']))
+                    @php($passed = collect($security['checks'])->filter(fn ($c) => $c['passed']))
+                    <h3>Attention needed <span class="plugsent-badge plugsent-badge-danger">{{ $failed->count() }}</span></h3>
+                    @if($failed->isEmpty())
+                        <p class="plugsent-muted">Everything checks out.</p>
+                    @else
+                        <ul class="plugsent-security-list">
+                            @foreach($failed as $check)
+                                <li>
+                                    <div>
+                                        <strong>{{ $check['label'] }}</strong>
+                                        <span class="plugsent-muted">{{ $check['detail'] }}</span>
+                                    </div>
+                                    @if($check['fix'] && $connected)
+                                        <button type="button" class="plugsent-btn"
+                                                wire:click="requestHardening('{{ $check['fix'] }}', true)"
+                                                @if($this->hardeningInFlight($check['fix'], true)) disabled @endif>
+                                            @if($this->hardeningInFlight($check['fix'], true)) Applying… @else Fix @endif
+                                        </button>
+                                    @endif
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+
+                    <h3>Passed <span class="plugsent-badge plugsent-badge-ok">{{ $passed->count() }}</span></h3>
+                    <ul class="plugsent-security-list plugsent-security-list-passed">
+                        @foreach($passed as $check)
+                            <li><strong>{{ $check['label'] }}</strong> <span class="plugsent-muted">{{ $check['detail'] }}</span></li>
+                        @endforeach
+                    </ul>
+                </div>
+
+                <div class="plugsent-security-hardening">
+                    <h3>Protections</h3>
+                    <p class="plugsent-muted">Applied on the site by the connector.</p>
+                    <ul class="plugsent-security-list">
+                        @foreach($hardeningLabels as $key => $label)
+                            @php
+                                $on = (bool) ($hardening[$key] ?? false);
+                                $toggling = $this->hardeningInFlight($key, ! $on);
+                            @endphp
+                            <li>
+                                <div>
+                                    <strong>{{ $label }}</strong>
+                                    <span class="plugsent-state plugsent-state-{{ $on ? 'up' : 'inactive' }}">{{ $on ? 'on' : 'off' }}</span>
+                                </div>
+                                <button type="button" class="plugsent-btn plugsent-btn-sm"
+                                        wire:click="requestHardening('{{ $key }}', {{ $on ? 'false' : 'true' }})"
+                                        @if($toggling) disabled @endif>
+                                    @if($toggling) … @elseif($on) Turn off @else Turn on @endif
+                                </button>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+        @endif
+    </div>
+
     @if($running->isNotEmpty())
         <div class="plugsent-process">
             <div class="plugsent-process-head">

@@ -45,6 +45,18 @@ class SitesTable
                     ->state(fn (Site $record): int => (int) $record->inventory()->sum('vuln_count'))
                     ->color(fn (int $state): string => $state > 0 ? 'danger' : 'gray')
                     ->formatStateUsing(fn (int $state): string => $state > 0 ? "{$state} vulnerable" : 'None known'),
+                TextColumn::make('security_score')
+                    ->label('Security')
+                    ->badge()
+                    ->state(fn (Site $record): string => $record->security_score !== null
+                        ? $record->security_score.'/100'
+                        : '—')
+                    ->color(fn (Site $record): string => match (true) {
+                        $record->security_score === null => 'gray',
+                        $record->security_score >= 80 => 'success',
+                        $record->security_score >= 50 => 'warning',
+                        default => 'danger',
+                    }),
                 TextColumn::make('uptime_status')
                     ->label('Uptime')
                     ->badge()

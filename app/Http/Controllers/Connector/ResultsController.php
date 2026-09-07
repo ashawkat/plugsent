@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Connector;
 
 use App\Actions\EnqueueSiteCommand;
+use App\Actions\EvaluateSiteSecurity;
 use App\Actions\ProcessInventoryResult;
 use App\Http\Controllers\Controller;
 use App\Models\SiteCommand;
@@ -65,6 +66,16 @@ class ResultsController extends Controller
 
             if ($command->type === 'inventory.get' && $result['status'] === 'ok') {
                 app(ProcessInventoryResult::class)($site, $result['data']['inventory'] ?? []);
+            }
+
+            if ($command->type === 'security.scan' && $result['status'] === 'ok') {
+                app(EvaluateSiteSecurity::class)($site, $result['data']['security'] ?? []);
+            }
+
+            // After a toggle applied on the site, refresh the facts so the
+            // score reflects the new state.
+            if ($command->type === 'security.harden' && $result['status'] === 'ok') {
+                app(EnqueueSiteCommand::class)($site, 'security.scan');
             }
 
             // Audit-trail the safe pipeline. A refused pipeline already

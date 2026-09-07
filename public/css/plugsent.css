@@ -907,3 +907,137 @@ body {
 .dark .plugsent-vuln-links a {
     color: #93c5fd;
 }
+
+/* Security section (score, checks, hardening toggles) */
+.plugsent-badge {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
+.plugsent-badge-danger {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.plugsent-badge-ok {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.dark .plugsent-badge-danger {
+    background: #7f1d1d;
+    color: #fecaca;
+}
+
+.dark .plugsent-badge-ok {
+    background: #14532d;
+    color: #bbf7d0;
+}
+
+.plugsent-btn-sm {
+    padding: 0.25rem 0.6rem;
+    font-size: 0.8rem;
+}
+
+.plugsent-security-grid {
+    display: grid;
+    grid-template-columns: 140px 1fr 260px;
+    gap: 1.25rem;
+    padding-top: 14px;
+}
+
+@media (max-width: 1024px) {
+    .plugsent-security-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.plugsent-security-score {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.plugsent-security-score-num {
+    font-size: 3rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.plugsent-security-score-good {
+    color: #16a34a;
+}
+
+.plugsent-security-score-fair {
+    color: #d97706;
+}
+
+.plugsent-security-score-poor {
+    color: #dc2626;
+}
+
+.plugsent-security-score-cap {
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.plugsent-security-checks h3,
+.plugsent-security-hardening h3 {
+    margin: 0 0 0.4rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.plugsent-security-hardening h3 {
+    margin-top: 0;
+}
+
+.plugsent-security-checks h3 + .plugsent-security-list {
+    margin-bottom: 1rem;
+}
+
+.plugsent-security-list {
+    list-style: none;
+    margin: 0 0 0.75rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.plugsent-security-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.5rem 0.625rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+}
+
+.plugsent-security-list-passed li {
+    border-color: transparent;
+    background: #f9fafb;
+    padding-block: 0.35rem;
+}
+
+.dark .plugsent-security-list li {
+    border-color: #374151;
+}
+
+.dark .plugsent-security-list-passed li {
+    background: #111827;
+}
+
+.plugsent-security-list li > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
