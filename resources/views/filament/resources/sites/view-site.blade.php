@@ -155,10 +155,11 @@
         @php
             $activeIncident = $this->site->activeIncident();
             $incidents = $this->recentIncidents();
+            $rate = $this->uptimeRate();
         @endphp
         <div class="plugsent-category">
             <div class="plugsent-category-head">
-                <h2>Uptime monitoring</h2>
+                <h2>Uptime &amp; monitoring</h2>
                 @if($connected)
                     <button type="button" class="plugsent-btn" wire:click="toggleUptime">
                         {{ $this->site->uptime_enabled ? 'Pause monitoring' : 'Resume monitoring' }}
@@ -166,80 +167,126 @@
                 @endif
             </div>
 
-            <div class="plugsent-form-grid cols-3" style="padding-top: 14px;">
-                <div class="plugsent-field">
-                    <label>Status</label>
+            <div class="plugsent-uptime-strip">
+                Monitor <a href="{{ $this->site->url }}" target="_blank" rel="noopener">{{ $this->site->url }}</a>
+                every {{ config('plugsent.uptime_interval_minutes', 5) }} min
+            </div>
+
+            <div class="plugsent-uptime-stats">
+                <div class="plugsent-uptime-stat">
+                    <span class="plugsent-uptime-stat-icon plugsent-uptime-dot-{{ $this->site->uptime_status === 'up' && $this->site->uptime_enabled ? 'up' : ($this->site->uptime_status === 'down' ? 'down' : 'idle') }}"></span>
                     <div>
-                        @if(! $this->site->uptime_enabled)
-                            <span class="plugsent-state plugsent-state-inactive">Monitoring paused</span>
-                        @elseif($this->site->uptime_status === 'up')
-                            <span class="plugsent-state plugsent-state-up">Up</span>
-                        @elseif($this->site->uptime_status === 'down')
-                            <span class="plugsent-state plugsent-state-down">Down</span>
-                        @else
-                            <span class="plugsent-state plugsent-state-inactive">Waiting for first check</span>
-                        @endif
+                        <span class="plugsent-uptime-stat-cap">Current status</span>
+                        <strong>
+                            @if(! $this->site->uptime_enabled)
+                                Monitoring paused
+                            @elseif($this->site->uptime_status === 'up')
+                                Up
+                            @elseif($this->site->uptime_status === 'down')
+                                Down
+                            @else
+                                Waiting for first check
+                            @endif
+                        </strong>
                     </div>
                 </div>
-                <div class="plugsent-field">
-                    <label>Last check</label>
-                    <div class="plugsent-meta">
-                        @if($this->site->uptime_last_checked_at)
-                            {{ $this->site->uptime_last_checked_at->diffForHumans() }}
-                            @if($this->site->uptime_last_response_ms !== null)
-                                · {{ number_format($this->site->uptime_last_response_ms) }} ms
+                <div class="plugsent-uptime-stat">
+                    <span class="plugsent-uptime-stat-icon">🌐</span>
+                    <div>
+                        <span class="plugsent-uptime-stat-cap">Domain expires</span>
+                        <strong>
+                            @if($this->site->domain_expires_at)
+                                {{ $this->site->domain_expires_at->diffForHumans(['parts' => 2]) }}
+                                <span class="plugsent-muted">({{ $this->site->domain_expires_at->format('M j, Y') }})</span>
+                            @else
+                                —
                             @endif
-                            @if($this->site->uptime_last_status_code)
-                                · HTTP {{ $this->site->uptime_last_status_code }}
-                            @elseif($this->site->uptime_last_error)
-                                · {{ \Illuminate\Support\Str::limit($this->site->uptime_last_error, 60) }}
-                            @endif
-                        @else
-                            —
-                        @endif
+                        </strong>
                     </div>
                 </div>
-                <div class="plugsent-field">
-                    <label>Downtime</label>
-                    <div class="plugsent-meta">
-                        @if($activeIncident)
-                            ⚠ Ongoing since {{ $activeIncident->started_at->diffForHumans() }}
-                        @else
-                            {{ $incidents->whereNotNull('ended_at')->count() }} incident(s) on record
-                        @endif
+                <div class="plugsent-uptime-stat">
+                    <span class="plugsent-uptime-stat-icon">🔒</span>
+                    <div>
+                        <span class="plugsent-uptime-stat-cap">SSL certificate expires</span>
+                        <strong>
+                            @if($this->site->ssl_expires_at)
+                                {{ $this->site->ssl_expires_at->diffForHumans(['parts' => 2]) }}
+                                <span class="plugsent-muted">({{ $this->site->ssl_expires_at->format('M j, Y') }})</span>
+                            @else
+                                —
+                            @endif
+                        </strong>
+                    </div>
+                </div>
+                <div class="plugsent-uptime-stat">
+                    <span class="plugsent-uptime-stat-icon">⏱</span>
+                    <div>
+                        <span class="plugsent-uptime-stat-cap">Last check</span>
+                        <strong>{{ $this->site->uptime_last_checked_at?->diffForHumans() ?? '—' }}</strong>
                     </div>
                 </div>
             </div>
+        </div>
 
-            @if($incidents->isNotEmpty())
-                <div class="plugsent-table-wrap" style="padding-top: 6px;">
-                    <table class="plugsent-table">
-                        <thead>
-                            <tr><th>Started</th><th>Duration</th><th>Detail</th></tr>
-                        </thead>
-                        <tbody>
-                            @foreach($incidents as $incident)
-                                <tr>
-                                    <td>{{ $incident->started_at->format('M j, H:i') }}</td>
-                                    <td>
-                                        @if($incident->isActive())
-                                            <span class="plugsent-state plugsent-state-down">ongoing</span>
-                                        @else
-                                            {{ $incident->started_at->diffForHumans($incident->ended_at, ['parts' => 2]) }}
-                                        @endif
-                                    </td>
-                                    <td class="plugsent-muted">
-                                        @if($incident->last_error)
-                                            {{ \Illuminate\Support\Str::limit($incident->last_error, 80) }}
-                                        @else
-                                            HTTP {{ $incident->last_status_code ?? '?' }} · {{ $incident->failure_count }} failed checks
-                                        @endif
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+        <div class="plugsent-category">
+            <div class="plugsent-category-head"><h2>Uptime rate</h2></div>
+            <div class="plugsent-uptime-rate">
+                <div class="plugsent-uptime-rate-pct plugsent-security-score-{{ $rate['pct'] >= 99.5 ? 'good' : ($rate['pct'] >= 95 ? 'fair' : 'poor') }}">
+                    {{ number_format($rate['pct'], 2) }}%
                 </div>
+                <div class="plugsent-uptime-rate-caption">uptime over 30 days</div>
+                <div class="plugsent-uptime-bars">
+                    @foreach($rate['days'] as $day)
+                        <span class="plugsent-uptime-bar {{ $day['downtime_seconds'] === 0 ? 'plugsent-uptime-bar-up' : 'plugsent-uptime-bar-down' }}"
+                              title="{{ $day['label'] }}"></span>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+
+        <div class="plugsent-category">
+            <div class="plugsent-category-head">
+                <h2>Incidents</h2>
+                <span class="plugsent-meta">
+                    @if($activeIncident)
+                        ⚠ Ongoing since {{ $activeIncident->started_at->diffForHumans() }}
+                    @else
+                        {{ $incidents->whereNotNull('ended_at')->count() }} on record
+                    @endif
+                </span>
+            </div>
+            @if($incidents->isEmpty())
+                <p class="plugsent-empty">No incidents recorded — checks started recently.</p>
+            @else
+                <ul class="plugsent-incident-list">
+                    @foreach($incidents as $incident)
+                        <li class="plugsent-incident">
+                            <span class="plugsent-incident-icon {{ $incident->isActive() ? 'plugsent-incident-down' : 'plugsent-incident-up' }}">
+                                {{ $incident->isActive() ? '✕' : '✓' }}
+                            </span>
+                            <div>
+                                <strong>
+                                    @if($incident->isActive())
+                                        Down since {{ $incident->started_at->format('M j, H:i') }}
+                                    @else
+                                        Back online
+                                    @endif
+                                </strong>
+                                <span class="plugsent-muted">
+                                    {{ $incident->started_at->format('M j, Y H:i') }}
+                                    @if($incident->ended_at)
+                                        · down for {{ $incident->started_at->longAbsoluteDiffForHumans($incident->ended_at, 2) }}
+                                    @endif
+                                </span>
+                                @if($incident->last_error || $incident->last_status_code)
+                                    <span class="plugsent-muted">
+                                        {{ $incident->last_error ? \Illuminate\Support\Str::limit($incident->last_error, 70) : 'HTTP '.$incident->last_status_code }}
+                                    </span>
+                                @endif
+                            </div>
+                        </li>
+                    @endforeach
+                </ul>
             @endif
         </div>
     @endif

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Sites\Pages;
 
 use App\Actions\EnqueueSiteCommand;
+use App\Actions\CheckDomainSsl;
 use App\Actions\EvaluateSiteSecurity;
 use App\Filament\Resources\Sites\SiteResource;
 use App\Models\InventoryItem;
@@ -133,7 +134,91 @@ class ViewSite extends Page
     {
         if (in_array($tab, self::TABS, true)) {
             $this->tab = $tab;
+
+            if ($tab === 'uptime') {
+                $this->refreshDomainSsl();
+            }
         }
+    }
+
+    /**
+     * Refresh domain/SSL expiry when the Uptime tab is opened and the
+     * cached lookup is older than a day (both lookups are slow, so they
+     * are never run during page polling).
+     */
+    public function refreshDomainSsl(): void
+    {
+        if (! $this->site->domain_checked_at?->gt(now()->subDay())) {
+            try {
+                app(CheckDomainSsl::class)($this->site);
+                $this->site->refresh();
+            } catch (\Throwable) {
+                // Expiry lookups are best-effort; the cards show — when unknown.
+            }
+        }
+    }
+
+    /**
+     * 30-day uptime rate and per-day status derived from the recorded
+     * incidents: the site counts as up except while an incident is open.
+     *
+     * @return array{pct: float, days: array<int, array{date: string, downtime_seconds: int, label: string}>}
+     */
+    public function uptimeRate(): array
+    {
+        $since = now()->subDays(29)->startOfDay();
+        $windowStart = $since->getTimestamp();
+        $windowSeconds = max(1, now()->getTimestamp() - $windowStart);
+
+        $incidents = $this->site->uptimeIncidents()
+            ->where('started_at', '>', $since->copy()->subDays(2))
+            ->where('started_at', '>', now()->subDays(30))
+            ->get();
+
+        $downPerDay = array_fill(0, 30, 0);
+
+        foreach ($incidents as $incident) {
+            $start = max($incident->started_at->getTimestamp(), $windowStart);
+            $end = $incident->ended_at?->getTimestamp() ?? now()->getTimestamp();
+
+            for ($day = 0; $day < 30; $day++) {
+                $dayStart = $windowStart + $day * 86400;
+                $dayEnd = $dayStart + 86400;
+
+                $overlap = min($end, $dayEnd) - max($start, $dayStart);
+
+                if ($overlap > 0) {
+                    $downPerDay[$day] += $overlap;
+                }
+            }
+        }
+
+        $totalDown = array_sum($downPerDay);
+
+        $days = [];
+
+        foreach ($downPerDay as $index => $down) {
+            $date = $since->copy()->addDays($index);
+
+            if ($down === 0) {
+                $label = $date->format('M j').' — 100%';
+            } else {
+                $minutes = (int) floor($down / 60);
+                $pct = round((1 - $down / 86400) * 100, 2);
+                $label = $date->format('M j').' — '.$pct.'% ('.$minutes.'m downtime)';
+            }
+
+            $days[] = [
+                'date' => $date->format('M j'),
+                'downtime_seconds' => $down,
+                'label' => $label,
+            ];
+        }
+
+        return [
+            'pct' => round((1 - $totalDown / $windowSeconds) * 100, 2),
+            'days' => $days,
+        ];
     }
 
     /**
@@ -463,7 +548,7 @@ class ViewSite extends Page
     {
         return $this->site->uptimeIncidents()
             ->orderByDesc('id')
-            ->limit(5)
+            ->limit(12)
             ->get();
     }
 
