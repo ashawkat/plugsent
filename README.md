@@ -42,6 +42,29 @@ channel — no firewall rules, no inbound ports, and never your WordPress admin 
     workspace + per-project roles.
   - **Settings UI** — configure SMTP (with test email) from the dashboard; values override `.env`.
   - **Admin quick login** — one-click single-use magic login into wp-admin.
+- **Sep 2026** — the WP Umbrella-class feature set landed:
+  - **Security** (connector 0.13.0+) — a per-site security **score out of 100** built from 14
+    health checks (WP_DEBUG, SSL, WP/PHP support status, inactive software, vulnerable software,
+    plus the six hardening protections), an "attention needed" list with one-click **Fix**
+    buttons, and **hardening toggles** the connector enforces on the site: hide WP version,
+    block user enumeration, mask login errors, disable the file editor, send security headers,
+    disable XML-RPC. Toggle state is persisted on the site (DB-backed option) and survives
+    restarts; all scoring logic lives on the panel so it evolves without touching sites.
+  - **Vulnerability intelligence** — a local mirror of the **Wordfence Intelligence feed**
+    (free API key, refreshed from Settings with a 1-hour cooldown, runs as a detached
+    background job) matched against every site's inventory. Sites show "⚠ N vulnerable"
+    badges, each opening a detail popup (severity, CVSS, CVE link, affected range, fix
+    status, description, references, what-to-do advice), and the Security tab lists every
+    affected plugin/theme per site with a "fix available" hint.
+  - **Site pages became tabs** — Overview / Plugins / Themes / Core / Uptime / Security /
+    History, like WP Umbrella. Overview summarizes security, updates, and uptime; **History**
+    is an audit trail of the last 40 commands (updates, rollbacks, restores, logins, scans).
+    Tabs are URL-addressable (`?tab=security`) and a **quick-switcher** dropdown (search,
+    keeps the current tab) jumps between sites from anywhere on a site page.
+  - **Uptime revamp** — status cards (current status, **domain expiry via RDAP**, **SSL expiry
+    read from the served certificate** — cached daily, last check), a **30-day uptime-rate**
+    percentage with per-day bars computed from incidents, and an incident timeline instead of
+    a table.
 
 ## Features (working today)
 
@@ -57,8 +80,10 @@ channel — no firewall rules, no inbound ports, and never your WordPress admin 
   automatic rollback. Core updates stay plain; old connectors keep the classic update path.
 - **Plugin/theme actions** — activate, deactivate, delete, theme switching, update exclusions,
   manual restore — with capability-based UI (old connectors simply don't show new buttons).
-- **Uptime monitoring** — scheduled external checks, downtime incidents, email alerts, and a
-  pause/resume toggle per site.
+- **Uptime monitoring** — scheduled external checks, downtime incidents, email alerts, a
+  pause/resume toggle per site, domain & SSL expiry tracking, and a 30-day uptime-rate view.
+- **Security & hardening** — Wordfence vulnerability matching with per-vulnerability detail
+  popups, a 14-check security score, and six connector-enforced hardening toggles per site.
 - **Connector protocol v1** — HMAC-SHA256 signed requests, timestamp tolerance, nonce replay
   protection, instant revocation, 120 req/min throttling.
 - **Revocable by design** — "Revoke access" kills the site's credentials on its next poll;
@@ -127,10 +152,12 @@ php scripts/simulate-site.php http://127.0.0.1:8000 <pairing-code>
 | 0 — Skeleton | ✅ shipped | Laravel + Filament, tenancy, projects/sites, policies |
 | 1 — Connector MVP | ✅ shipped | Pairing, signed poll loop, inventory, connect UI |
 | 2 — Safe updates | ✅ shipped | Restore point → update → smoke test → auto-rollback, update audit trail |
-| 3 — Safety net | 🟡 half shipped | ✅ uptime + incidents + email alerts · ⬜ PHP error stream, vulnerability feed |
+| 3 — Safety net | ✅ shipped | ✅ uptime + incidents + email alerts · ✅ Wordfence vulnerability feed & matching |
+| 3.5 — Security | ✅ shipped | Security score, health checks, connector-enforced hardening toggles, site tabs, history audit trail, quick-switcher |
 | 4 — Teams & MCP | 🟡 half shipped | ✅ invitations, roles, project-level RBAC · ⬜ MCP gateway, public API |
 | 5 — AI | planned | Chat over your fleet, update risk summaries, weekly digests |
 | 6 — Mobile | planned | PWA first, then an Expo app on the same API |
+| 7 — Parity extras | ⬜ next | Performance (PageSpeed) monitoring, broken-link checking, backups, malware scanning, activity log beyond commands, alerting rules |
 
 ## Development
 
