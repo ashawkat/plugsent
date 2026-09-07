@@ -65,6 +65,25 @@ channel — no firewall rules, no inbound ports, and never your WordPress admin 
     read from the served certificate** — cached daily, last check), a **30-day uptime-rate**
     percentage with per-day bars computed from incidents, and an incident timeline instead of
     a table.
+- **Sep 2026, part 2** — emails, accounts, and account security:
+  - **Branded email templates** — one shared Plugsent-styled HTML layout powers every email:
+    🔴 site-down / 🟢 recovered uptime alerts, 🛡 **security alerts** (sent when a site's
+    vulnerability count grows, throttled to one email per site per day), a **daily
+    "updates available" digest** (once a day per workspace — every site with pending updates
+    and the exact versions, no per-update spam), and a **"your password was changed"**
+    confirmation with a "this wasn't you" warning.
+  - **My account page** — every user can update their name/email, change their password
+    (requires the current password, signs out other browser sessions, and emails a
+    confirmation), and set **email preferences** — uptime, security, and updates emails each
+    have an opt-out, respected by every sender.
+  - **Two-factor authentication (TOTP)** — enable from My account by scanning a QR code with
+    any authenticator app; sign-in then requires a 6-digit code after the password (built on
+    Filament's multi-factor challenge system). Eight one-time **recovery codes** are shown at
+    setup and can be used instead of a code if the device is lost; disabling 2FA or
+    regenerating codes requires the account password. Secrets are encrypted at rest, recovery
+    codes hashed.
+  - **Show/hide (eye) icons** on every password field — registration, login, password reset,
+    invite join, and the account page.
 
 ## Features (working today)
 
@@ -84,6 +103,9 @@ channel — no firewall rules, no inbound ports, and never your WordPress admin 
   pause/resume toggle per site, domain & SSL expiry tracking, and a 30-day uptime-rate view.
 - **Security & hardening** — Wordfence vulnerability matching with per-vulnerability detail
   popups, a 14-check security score, and six connector-enforced hardening toggles per site.
+- **Emails & accounts** — branded templates for uptime/security/update-digest/password emails
+  with per-user opt-outs; a My account page (profile, password change, 2FA setup); TOTP
+  two-factor login with recovery codes; show/hide toggles on all password fields.
 - **Connector protocol v1** — HMAC-SHA256 signed requests, timestamp tolerance, nonce replay
   protection, instant revocation, 120 req/min throttling.
 - **Revocable by design** — "Revoke access" kills the site's credentials on its next poll;
@@ -154,6 +176,7 @@ php scripts/simulate-site.php http://127.0.0.1:8000 <pairing-code>
 | 2 — Safe updates | ✅ shipped | Restore point → update → smoke test → auto-rollback, update audit trail |
 | 3 — Safety net | ✅ shipped | ✅ uptime + incidents + email alerts · ✅ Wordfence vulnerability feed & matching |
 | 3.5 — Security | ✅ shipped | Security score, health checks, connector-enforced hardening toggles, site tabs, history audit trail, quick-switcher |
+| 3.6 — Accounts & emails | ✅ shipped | Branded email templates (uptime/security/daily updates digest/password), My account page with email preferences, TOTP 2FA with recovery codes, revealable password fields |
 | 4 — Teams & MCP | 🟡 half shipped | ✅ invitations, roles, project-level RBAC · ⬜ MCP gateway, public API |
 | 5 — AI | planned | Chat over your fleet, update risk summaries, weekly digests |
 | 6 — Mobile | planned | PWA first, then an Expo app on the same API |
