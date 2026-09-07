@@ -2,11 +2,32 @@
     @php
         $connected = $this->site->isConnected();
         $running = $this->runningProcesses();
-        $sections = [
-            'plugin' => 'Plugins',
-            'theme' => 'Themes',
-            'core' => 'WordPress core',
+        $excluded = $this->excludedKeys();
+        $restorableKeys = $this->restorableKeys();
+        $tabs = [
+            'overview' => 'Overview',
+            'plugins' => 'Plugins',
+            'themes' => 'Themes',
+            'core' => 'Core',
+            'uptime' => 'Uptime',
+            'security' => 'Security',
+            'history' => 'History',
         ];
+        $securitySupported = $this->securitySupported();
+        $scanInFlight = $this->securityScanInFlight();
+        $security = $securitySupported && $this->site->security_scanned_at !== null
+            ? $this->securityEvaluation()
+            : null;
+        $hardening = (array) ($this->site->hardening ?? []);
+        $hardeningLabels = [
+            'hide_version' => 'Hide your WordPress version',
+            'block_user_enum' => 'Block user enumeration',
+            'mask_login_errors' => 'Mask login error messages',
+            'disable_file_editor' => 'Disable the file editor',
+            'security_headers' => 'Add security headers',
+            'disable_xmlrpc' => 'Disable XML-RPC',
+        ];
+        $failedChecks = $security !== null ? collect($security['checks'])->reject(fn ($c) => $c['passed']) : collect();
     @endphp
 
     <div class="plugsent-site-strip">
@@ -28,208 +49,19 @@
         @endif
     </div>
 
-    {{-- Uptime --}}
-    @php
-        $activeIncident = $this->site->activeIncident();
-        $incidents = $this->recentIncidents();
-    @endphp
-    <div class="plugsent-category">
-        <div class="plugsent-category-head">
-            <h2>Uptime</h2>
-            @if($connected)
-                <button type="button" class="plugsent-btn" wire:click="toggleUptime">
-                    {{ $this->site->uptime_enabled ? 'Pause monitoring' : 'Resume monitoring' }}
-                </button>
-            @endif
-        </div>
-
-        <div class="plugsent-form-grid cols-3" style="padding-top: 14px;">
-            <div class="plugsent-field">
-                <label>Status</label>
-                <div>
-                    @if(! $this->site->uptime_enabled)
-                        <span class="plugsent-state plugsent-state-inactive">Monitoring paused</span>
-                    @elseif($this->site->uptime_status === 'up')
-                        <span class="plugsent-state plugsent-state-up">Up</span>
-                    @elseif($this->site->uptime_status === 'down')
-                        <span class="plugsent-state plugsent-state-down">Down</span>
-                    @else
-                        <span class="plugsent-state plugsent-state-inactive">Waiting for first check</span>
-                    @endif
-                </div>
-            </div>
-            <div class="plugsent-field">
-                <label>Last check</label>
-                <div class="plugsent-meta">
-                    @if($this->site->uptime_last_checked_at)
-                        {{ $this->site->uptime_last_checked_at->diffForHumans() }}
-                        @if($this->site->uptime_last_response_ms !== null)
-                            · {{ number_format($this->site->uptime_last_response_ms) }} ms
-                        @endif
-                        @if($this->site->uptime_last_status_code)
-                            · HTTP {{ $this->site->uptime_last_status_code }}
-                        @elseif($this->site->uptime_last_error)
-                            · {{ \Illuminate\Support\Str::limit($this->site->uptime_last_error, 60) }}
-                        @endif
-                    @else
-                        —
-                    @endif
-                </div>
-            </div>
-            <div class="plugsent-field">
-                <label>Downtime</label>
-                <div class="plugsent-meta">
-                    @if($activeIncident)
-                        ⚠ Ongoing since {{ $activeIncident->started_at->diffForHumans() }}
-                    @else
-                        {{ $incidents->whereNotNull('ended_at')->count() }} incident(s) on record
-                    @endif
-                </div>
-            </div>
-        </div>
-
-        @if($incidents->isNotEmpty())
-            <div class="plugsent-table-wrap" style="padding-top: 6px;">
-                <table class="plugsent-table">
-                    <thead>
-                        <tr><th>Started</th><th>Duration</th><th>Detail</th></tr>
-                    </thead>
-                    <tbody>
-                        @foreach($incidents as $incident)
-                            <tr>
-                                <td>{{ $incident->started_at->format('M j, H:i') }}</td>
-                                <td>
-                                    @if($incident->isActive())
-                                        <span class="plugsent-state plugsent-state-down">ongoing</span>
-                                    @else
-                                        {{ $incident->started_at->diffForHumans($incident->ended_at, ['parts' => 2]) }}
-                                    @endif
-                                </td>
-                                <td class="plugsent-muted">
-                                    @if($incident->last_error)
-                                        {{ \Illuminate\Support\Str::limit($incident->last_error, 80) }}
-                                    @else
-                                        HTTP {{ $incident->last_status_code ?? '?' }} · {{ $incident->failure_count }} failed checks
-                                    @endif
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @endif
-    </div>
-
-    {{-- Security --}}
-    @php
-        $securitySupported = $this->securitySupported();
-        $scanInFlight = $this->securityScanInFlight();
-        $security = $securitySupported && $this->site->security_scanned_at !== null
-            ? $this->securityEvaluation()
-            : null;
-        $hardening = (array) ($this->site->hardening ?? []);
-        $hardeningLabels = [
-            'hide_version' => 'Hide your WordPress version',
-            'block_user_enum' => 'Block user enumeration',
-            'mask_login_errors' => 'Mask login error messages',
-            'disable_file_editor' => 'Disable the file editor',
-            'security_headers' => 'Add security headers',
-            'disable_xmlrpc' => 'Disable XML-RPC',
-        ];
-    @endphp
-    <div class="plugsent-category" id="security">
-        <div class="plugsent-category-head">
-            <h2>Security</h2>
-            @if($connected && $securitySupported)
-                <button type="button" class="plugsent-btn" wire:click="runSecurityScan" @if($scanInFlight) disabled @endif>
-                    @if($scanInFlight) Scanning… @else Re-scan @endif
-                </button>
-            @endif
-        </div>
-
-        @if(! $securitySupported)
-            <p class="plugsent-empty">
-                This site runs an older Plugsent Connector. Update it to 0.13.0+ on the site to enable
-                security scans and hardening.
-            </p>
-        @elseif($this->site->security_scanned_at === null)
-            <p class="plugsent-empty">
-                No security scan yet. A scan is queued and will complete on the site's next check-in.
-            </p>
-        @else
-            <div class="plugsent-security-grid">
-                <div class="plugsent-security-score">
-                    <span class="plugsent-security-score-num plugsent-security-score-{{ $security['score'] >= 80 ? 'good' : ($security['score'] >= 50 ? 'fair' : 'poor') }}">
-                        {{ $security['score'] }}
-                    </span>
-                    <span class="plugsent-security-score-cap">
-                        /100<br>
-                        <span class="plugsent-muted">scanned {{ $this->site->security_scanned_at->diffForHumans() }}</span>
-                    </span>
-                </div>
-
-                <div class="plugsent-security-checks">
-                    @php
-                        $failed = collect($security['checks'])->reject(fn ($c) => $c['passed']);
-                        $passed = collect($security['checks'])->filter(fn ($c) => $c['passed']);
-                    @endphp
-                    <h3>Attention needed <span class="plugsent-badge plugsent-badge-danger">{{ $failed->count() }}</span></h3>
-                    @if($failed->isEmpty())
-                        <p class="plugsent-muted">Everything checks out.</p>
-                    @else
-                        <ul class="plugsent-security-list">
-                            @foreach($failed as $check)
-                                <li>
-                                    <div>
-                                        <strong>{{ $check['label'] }}</strong>
-                                        <span class="plugsent-muted">{{ $check['detail'] }}</span>
-                                    </div>
-                                    @if($check['fix'] && $connected)
-                                        <button type="button" class="plugsent-btn"
-                                                wire:click="requestHardening('{{ $check['fix'] }}', true)"
-                                                @if($this->hardeningInFlight($check['fix'], true)) disabled @endif>
-                                            @if($this->hardeningInFlight($check['fix'], true)) Applying… @else Fix @endif
-                                        </button>
-                                    @endif
-                                </li>
-                            @endforeach
-                        </ul>
-                    @endif
-
-                    <h3>Passed <span class="plugsent-badge plugsent-badge-ok">{{ $passed->count() }}</span></h3>
-                    <ul class="plugsent-security-list plugsent-security-list-passed">
-                        @foreach($passed as $check)
-                            <li><strong>{{ $check['label'] }}</strong> <span class="plugsent-muted">{{ $check['detail'] }}</span></li>
-                        @endforeach
-                    </ul>
-                </div>
-
-                <div class="plugsent-security-hardening">
-                    <h3>Protections</h3>
-                    <p class="plugsent-muted">Applied on the site by the connector.</p>
-                    <ul class="plugsent-security-list">
-                        @foreach($hardeningLabels as $key => $label)
-                            @php
-                                $on = (bool) ($hardening[$key] ?? false);
-                                $toggling = $this->hardeningInFlight($key, ! $on);
-                            @endphp
-                            <li>
-                                <div>
-                                    <strong>{{ $label }}</strong>
-                                    <span class="plugsent-state plugsent-state-{{ $on ? 'up' : 'inactive' }}">{{ $on ? 'on' : 'off' }}</span>
-                                </div>
-                                <button type="button" class="plugsent-btn plugsent-btn-sm"
-                                        wire:click="requestHardening('{{ $key }}', {{ $on ? 'false' : 'true' }})"
-                                        @if($toggling) disabled @endif>
-                                    @if($toggling) … @elseif($on) Turn off @else Turn on @endif
-                                </button>
-                            </li>
-                        @endforeach
-                    </ul>
-                </div>
-            </div>
-        @endif
-    </div>
+    {{-- Section tabs --}}
+    <nav class="plugsent-tabs">
+        @foreach($tabs as $key => $label)
+            <button type="button"
+                    class="plugsent-tab {{ $tab === $key ? 'plugsent-tab-active' : '' }}"
+                    wire:click="switchTab('{{ $key }}')">
+                {{ $label }}
+                @if($key === 'security' && $security !== null && $failedChecks->count() > 0)
+                    <span class="plugsent-badge plugsent-badge-danger">{{ $failedChecks->count() }}</span>
+                @endif
+            </button>
+        @endforeach
+    </nav>
 
     @if($running->isNotEmpty())
         <div class="plugsent-process">
@@ -255,17 +87,171 @@
         </div>
     @endif
 
-    @php
-        $excluded = $this->excludedKeys();
-        $restorableKeys = $this->restorableKeys();
-    @endphp
+    {{-- ============ Overview ============ --}}
+    @if($tab === 'overview')
+        <div class="plugsent-overview-grid">
+            <div class="plugsent-category">
+                <div class="plugsent-category-head"><h2>Security</h2></div>
+                @if(! $securitySupported)
+                    <p class="plugsent-empty">Update the Plugsent Connector on this site to 0.13.0+ to enable security scans and hardening.</p>
+                @elseif($security === null)
+                    <p class="plugsent-empty">No security scan yet — first scan queued on the site's next check-in.</p>
+                @else
+                    <div class="plugsent-overview-card">
+                        <span class="plugsent-security-score-num plugsent-security-score-{{ $security['score'] >= 80 ? 'good' : ($security['score'] >= 50 ? 'fair' : 'poor') }}">
+                            {{ $security['score'] }}<small>/100</small>
+                        </span>
+                        <div class="plugsent-overview-card-body">
+                            @if($failedChecks->isEmpty())
+                                <span class="plugsent-state plugsent-state-up">All {{ $security['checks']|count }} checks passed</span>
+                            @else
+                                <strong>{{ $failedChecks->count() }} item(s) need attention</strong>
+                                <span class="plugsent-muted">{{ $failedChecks->take(2)->pluck('label')->implode(' · ') }}@if($failedChecks->count() > 2) · …@endif</span>
+                            @endif
+                            <button type="button" class="plugsent-btn plugsent-btn-sm" wire:click="switchTab('security')">Open Security</button>
+                        </div>
+                    </div>
+                @endif
+            </div>
 
-    @foreach($sections as $context => $label)
+            <div class="plugsent-category">
+                <div class="plugsent-category-head"><h2>Updates</h2></div>
+                <ul class="plugsent-security-list">
+                    @foreach(['plugin' => 'Plugins', 'theme' => 'Themes', 'core' => 'WordPress core'] as $ctx => $label)
+                        @php $pending = $this->pendingCountFor($ctx); @endphp
+                        <li>
+                            <div>
+                                <strong>{{ $label }}</strong>
+                                <span class="plugsent-muted">{{ $pending > 0 ? $pending.' update(s) available' : 'Up to date' }}</span>
+                            </div>
+                            <button type="button" class="plugsent-btn plugsent-btn-sm" wire:click="switchTab('{{ $ctx }}')">Manage</button>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+
+            <div class="plugsent-category">
+                <div class="plugsent-category-head"><h2>Uptime</h2></div>
+                <div class="plugsent-overview-card plugsent-overview-card-col">
+                    @if(! $this->site->uptime_enabled)
+                        <span class="plugsent-state plugsent-state-inactive">Monitoring paused</span>
+                    @elseif($this->site->uptime_status === 'up')
+                        <span class="plugsent-state plugsent-state-up">Up</span>
+                        <span class="plugsent-muted">Last check {{ $this->site->uptime_last_checked_at?->diffForHumans() ?? '—' }}</span>
+                    @elseif($this->site->uptime_status === 'down')
+                        <span class="plugsent-state plugsent-state-down">Down</span>
+                        <span class="plugsent-muted">{{ $this->site->activeIncident() ? 'Ongoing incident' : 'Recently recovered' }}</span>
+                    @else
+                        <span class="plugsent-state plugsent-state-inactive">Waiting for first check</span>
+                    @endif
+                    <button type="button" class="plugsent-btn plugsent-btn-sm" wire:click="switchTab('uptime')">Uptime details</button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- ============ Uptime ============ --}}
+    @if($tab === 'uptime')
         @php
+            $activeIncident = $this->site->activeIncident();
+            $incidents = $this->recentIncidents();
+        @endphp
+        <div class="plugsent-category">
+            <div class="plugsent-category-head">
+                <h2>Uptime monitoring</h2>
+                @if($connected)
+                    <button type="button" class="plugsent-btn" wire:click="toggleUptime">
+                        {{ $this->site->uptime_enabled ? 'Pause monitoring' : 'Resume monitoring' }}
+                    </button>
+                @endif
+            </div>
+
+            <div class="plugsent-form-grid cols-3" style="padding-top: 14px;">
+                <div class="plugsent-field">
+                    <label>Status</label>
+                    <div>
+                        @if(! $this->site->uptime_enabled)
+                            <span class="plugsent-state plugsent-state-inactive">Monitoring paused</span>
+                        @elseif($this->site->uptime_status === 'up')
+                            <span class="plugsent-state plugsent-state-up">Up</span>
+                        @elseif($this->site->uptime_status === 'down')
+                            <span class="plugsent-state plugsent-state-down">Down</span>
+                        @else
+                            <span class="plugsent-state plugsent-state-inactive">Waiting for first check</span>
+                        @endif
+                    </div>
+                </div>
+                <div class="plugsent-field">
+                    <label>Last check</label>
+                    <div class="plugsent-meta">
+                        @if($this->site->uptime_last_checked_at)
+                            {{ $this->site->uptime_last_checked_at->diffForHumans() }}
+                            @if($this->site->uptime_last_response_ms !== null)
+                                · {{ number_format($this->site->uptime_last_response_ms) }} ms
+                            @endif
+                            @if($this->site->uptime_last_status_code)
+                                · HTTP {{ $this->site->uptime_last_status_code }}
+                            @elseif($this->site->uptime_last_error)
+                                · {{ \Illuminate\Support\Str::limit($this->site->uptime_last_error, 60) }}
+                            @endif
+                        @else
+                            —
+                        @endif
+                    </div>
+                </div>
+                <div class="plugsent-field">
+                    <label>Downtime</label>
+                    <div class="plugsent-meta">
+                        @if($activeIncident)
+                            ⚠ Ongoing since {{ $activeIncident->started_at->diffForHumans() }}
+                        @else
+                            {{ $incidents->whereNotNull('ended_at')->count() }} incident(s) on record
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            @if($incidents->isNotEmpty())
+                <div class="plugsent-table-wrap" style="padding-top: 6px;">
+                    <table class="plugsent-table">
+                        <thead>
+                            <tr><th>Started</th><th>Duration</th><th>Detail</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach($incidents as $incident)
+                                <tr>
+                                    <td>{{ $incident->started_at->format('M j, H:i') }}</td>
+                                    <td>
+                                        @if($incident->isActive())
+                                            <span class="plugsent-state plugsent-state-down">ongoing</span>
+                                        @else
+                                            {{ $incident->started_at->diffForHumans($incident->ended_at, ['parts' => 2]) }}
+                                        @endif
+                                    </td>
+                                    <td class="plugsent-muted">
+                                        @if($incident->last_error)
+                                            {{ \Illuminate\Support\Str::limit($incident->last_error, 80) }}
+                                        @else
+                                            HTTP {{ $incident->last_status_code ?? '?' }} · {{ $incident->failure_count }} failed checks
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
+    @endif
+
+    {{-- ============ Plugins / Themes / Core ============ --}}
+    @if(in_array($tab, ['plugins', 'themes', 'core'], true))
+        @php
+            $context = $tab;
+            $label = ['plugins' => 'Plugins', 'themes' => 'Themes', 'core' => 'WordPress core'][$tab];
             $items = $this->getInventoryFor($context);
             $pending = $items->where('update_available', true)->count();
         @endphp
-
         <div class="plugsent-category">
             <div class="plugsent-category-head">
                 <h2>{{ $label }}</h2>
@@ -420,7 +406,184 @@
                 </table>
             </div>
         </div>
-    @endforeach
+    @endif
+
+    {{-- ============ Security ============ --}}
+    @if($tab === 'security')
+        <div class="plugsent-category">
+            <div class="plugsent-category-head">
+                <h2>Site health</h2>
+                @if($connected && $securitySupported)
+                    <button type="button" class="plugsent-btn" wire:click="runSecurityScan" @if($scanInFlight) disabled @endif>
+                        @if($scanInFlight) Scanning… @else Re-scan @endif
+                    </button>
+                @endif
+            </div>
+
+            @if(! $securitySupported)
+                <p class="plugsent-empty">
+                    This site runs an older Plugsent Connector. Update it to 0.13.0+ on the site to enable
+                    security scans and hardening.
+                </p>
+            @elseif($this->site->security_scanned_at === null)
+                <p class="plugsent-empty">
+                    No security scan yet. A scan is queued and will complete on the site's next check-in.
+                </p>
+            @else
+                <div class="plugsent-security-grid">
+                    <div class="plugsent-security-score">
+                        <span class="plugsent-security-score-num plugsent-security-score-{{ $security['score'] >= 80 ? 'good' : ($security['score'] >= 50 ? 'fair' : 'poor') }}">
+                            {{ $security['score'] }}
+                        </span>
+                        <span class="plugsent-security-score-cap">
+                            /100<br>
+                            <span class="plugsent-muted">scanned {{ $this->site->security_scanned_at->diffForHumans() }}</span>
+                        </span>
+                    </div>
+
+                    <div class="plugsent-security-checks">
+                        <h3>Attention needed <span class="plugsent-badge plugsent-badge-danger">{{ $failedChecks->count() }}</span></h3>
+                        @if($failedChecks->isEmpty())
+                            <p class="plugsent-muted">Everything checks out.</p>
+                        @else
+                            <ul class="plugsent-security-list">
+                                @foreach($failedChecks as $check)
+                                    <li>
+                                        <div>
+                                            <strong>{{ $check['label'] }}</strong>
+                                            <span class="plugsent-muted">{{ $check['detail'] }}</span>
+                                        </div>
+                                        @if($check['fix'] && $connected)
+                                            <button type="button" class="plugsent-btn"
+                                                    wire:click="requestHardening('{{ $check['fix'] }}', true)"
+                                                    @if($this->hardeningInFlight($check['fix'], true)) disabled @endif>
+                                                @if($this->hardeningInFlight($check['fix'], true)) Applying… @else Fix @endif
+                                            </button>
+                                        @endif
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
+
+                        <h3>Passed <span class="plugsent-badge plugsent-badge-ok">{{ count($security['checks']) - $failedChecks->count() }}</span></h3>
+                        <ul class="plugsent-security-list plugsent-security-list-passed">
+                            @foreach(collect($security['checks'])->filter(fn ($c) => $c['passed']) as $check)
+                                <li><strong>{{ $check['label'] }}</strong> <span class="plugsent-muted">{{ $check['detail'] }}</span></li>
+                            @endforeach
+                        </ul>
+                    </div>
+
+                    <div class="plugsent-security-hardening">
+                        <h3>Protections</h3>
+                        <p class="plugsent-muted">Applied on the site by the connector.</p>
+                        <ul class="plugsent-security-list">
+                            @foreach($hardeningLabels as $key => $hlabel)
+                                @php
+                                    $on = (bool) ($hardening[$key] ?? false);
+                                    $toggling = $this->hardeningInFlight($key, ! $on);
+                                @endphp
+                                <li>
+                                    <div>
+                                        <strong>{{ $hlabel }}</strong>
+                                        <span class="plugsent-state plugsent-state-{{ $on ? 'up' : 'inactive' }}">{{ $on ? 'on' : 'off' }}</span>
+                                    </div>
+                                    <button type="button" class="plugsent-btn plugsent-btn-sm"
+                                            wire:click="requestHardening('{{ $key }}', {{ $on ? 'false' : 'true' }})"
+                                            @if($toggling) disabled @endif>
+                                        @if($toggling) … @elseif($on) Turn off @else Turn on @endif
+                                    </button>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                </div>
+            @endif
+        </div>
+
+        <div class="plugsent-category">
+            <div class="plugsent-category-head">
+                <h2>Vulnerabilities</h2>
+            </div>
+            @php $vulnerableItems = $this->site->inventory()->where('vuln_count', '>', 0)->orderByDesc('vuln_count')->get(); @endphp
+            @if($vulnerableItems->isEmpty())
+                <p class="plugsent-empty">No known vulnerable plugins or themes on this site.</p>
+            @else
+                <div class="plugsent-table-wrap">
+                    <table class="plugsent-table">
+                        <thead>
+                            <tr><th>Name</th><th>Installed</th><th>Vulnerabilities</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach($vulnerableItems as $item)
+                                <tr>
+                                    <td>
+                                        <div class="plugsent-item-name">{{ $item->name }}</div>
+                                        <div class="plugsent-item-slug">{{ $item->slug }}</div>
+                                    </td>
+                                    <td>{{ $item->version }}</td>
+                                    <td>
+                                        <span class="plugsent-state plugsent-state-down">⚠ {{ $item->vuln_count }}</span>
+                                        @if($item->update_available)
+                                            <span class="plugsent-state plugsent-state-up">fix available: {{ $item->update_version }}</span>
+                                        @endif
+                                    </td>
+                                    <td class="plugsent-cell-actions">
+                                        <button type="button" class="plugsent-btn plugsent-btn-sm"
+                                                wire:click="openVulnerabilities('{{ $item->context }}', '{{ $item->slug }}', @js($item->name), {{ $item->update_available ? 'true' : 'false' }})">
+                                            Details
+                                        </button>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
+    @endif
+
+    {{-- ============ History ============ --}}
+    @if($tab === 'history')
+        <div class="plugsent-category">
+            <div class="plugsent-category-head">
+                <h2>Activity history</h2>
+            </div>
+            <div class="plugsent-table-wrap">
+                <table class="plugsent-table">
+                    <thead>
+                        <tr><th>When</th><th>Action</th><th>Status</th><th>Detail</th></tr>
+                    </thead>
+                    <tbody>
+                        @forelse($this->history() as $cmd)
+                            <tr>
+                                <td>
+                                    <div>{{ $cmd->created_at->format('M j, H:i') }}</div>
+                                    <div class="plugsent-item-slug">{{ $cmd->created_at->diffForHumans() }}</div>
+                                </td>
+                                <td>{{ $this->processSubject($cmd) }}</td>
+                                <td>
+                                    @if($cmd->status === \App\Models\SiteCommand::STATUS_COMPLETED)
+                                        <span class="plugsent-state plugsent-state-up">completed</span>
+                                    @elseif($cmd->status === \App\Models\SiteCommand::STATUS_FAILED)
+                                        <span class="plugsent-state plugsent-state-down">failed</span>
+                                    @else
+                                        <span class="plugsent-state plugsent-state-inactive">{{ $cmd->status }}</span>
+                                    @endif
+                                </td>
+                                <td class="plugsent-muted">
+                                    {{ \Illuminate\Support\Str::limit($cmd->result['error'] ?? ($cmd->result['data']['update']['message'] ?? ($cmd->result['data']['safe']['message'] ?? '')) ?: '', 90) }}
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="plugsent-empty">No activity recorded yet.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
 
     {{-- Vulnerability detail modal --}}
     @if($this->vulnDetail !== null)

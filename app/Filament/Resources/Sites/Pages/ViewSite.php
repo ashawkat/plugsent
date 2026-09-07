@@ -18,6 +18,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use Livewire\Attributes\Url;
 
 class ViewSite extends Page
 {
@@ -41,6 +42,15 @@ class ViewSite extends Page
         'plugin.delete',
         'theme.delete',
     ];
+
+    /**
+     * The active section tab. Kept in the URL so views are shareable and
+     * survive reloads.
+     */
+    #[Url]
+    public string $tab = 'overview';
+
+    private const TABS = ['overview', 'plugins', 'themes', 'core', 'uptime', 'security', 'history'];
 
     /**
      * The inventory item whose vulnerability list is shown in the modal,
@@ -102,13 +112,40 @@ class ViewSite extends Page
 
     public Site $site;
 
-    public function mount(Site $record): void
+    public function mount(Site $record, ?string $tab = null): void
     {
         Gate::authorize('view', $record);
 
         $this->site = $record;
 
+        if ($tab !== null && in_array($tab, self::TABS, true)) {
+            $this->tab = $tab;
+        }
+
+        if (! in_array($this->tab, self::TABS, true)) {
+            $this->tab = 'overview';
+        }
+
         $this->maybeAutoScan();
+    }
+
+    public function switchTab(string $tab): void
+    {
+        if (in_array($tab, self::TABS, true)) {
+            $this->tab = $tab;
+        }
+    }
+
+    /**
+     * Recent commands for this site, newest first — the History tab.
+     */
+    public function history(): Collection
+    {
+        return SiteCommand::query()
+            ->where('site_id', $this->site->getKey())
+            ->orderByDesc('id')
+            ->limit(40)
+            ->get();
     }
 
     public function getTitle(): string

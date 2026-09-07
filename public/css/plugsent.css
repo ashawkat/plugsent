@@ -1041,3 +1041,93 @@ body {
     flex-direction: column;
     gap: 0.125rem;
 }
+
+/* Site page section tabs */
+.plugsent-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin: 0.75rem 0 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 0.5rem;
+}
+
+.dark .plugsent-tabs {
+    border-bottom-color: #374151;
+}
+
+.plugsent-tab {
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 0.5rem;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #4b5563;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.plugsent-tab:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+.dark .plugsent-tab {
+    color: #9ca3af;
+}
+
+.dark .plugsent-tab:hover {
+    background: #111827;
+    color: #f9fafb;
+}
+
+.plugsent-tab-active,
+.plugsent-tab-active:hover {
+    background: #eef2ff;
+    border-color: #c7d2fe;
+    color: #4338ca;
+}
+
+.dark .plugsent-tab-active,
+.dark .plugsent-tab-active:hover {
+    background: #1e1b4b;
+    border-color: #3730a3;
+    color: #c7d2fe;
+}
+
+/* Overview summary cards */
+.plugsent-overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.plugsent-overview-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding-top: 0.75rem;
+    font-size: 0.9rem;
+}
+
+.plugsent-overview-card-col {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+}
+
+.plugsent-overview-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    align-items: flex-start;
+}
+
+.plugsent-security-score-num small {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #6b7280;
+}
