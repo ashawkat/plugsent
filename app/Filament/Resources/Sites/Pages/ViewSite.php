@@ -130,6 +130,30 @@ class ViewSite extends Page
         $this->maybeAutoScan();
     }
 
+    /**
+     * Sites the current user can access in this workspace, for the
+     * quick-switcher dropdown. URLs are generated server-side (they embed
+     * the tenant slug) and the client appends the active tab.
+     */
+    public function switcherItems(): array
+    {
+        $user = auth()->user();
+
+        return Site::query()
+            ->where('workspace_id', $this->site->workspace_id)
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (Site $site) => $user?->can('view', $site))
+            ->map(fn (Site $site): array => [
+                'id' => $site->getKey(),
+                'name' => $site->name,
+                'url' => $site->url,
+                'view_url' => SiteResource::getUrl('view', ['record' => $site->getKey()]),
+            ])
+            ->values()
+            ->all();
+    }
+
     public function switchTab(string $tab): void
     {
         if (in_array($tab, self::TABS, true)) {

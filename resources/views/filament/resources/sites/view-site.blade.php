@@ -34,6 +34,45 @@
         <span class="fi-badge fi-badge-size-md fi-color-{{ $connected ? 'success' : 'gray' }}">
             <span class="fi-badge-label">{{ $this->site->status }}</span>
         </span>
+
+        <div class="plugsent-switcher" x-data="{
+                open: false,
+                q: '',
+                tab: '{{ $tab }}',
+                items: @json($this->switcherItems()),
+                current: {{ $this->site->getKey() }},
+                get filtered() {
+                    const q = this.q.trim().toLowerCase();
+                    if (q === '') return this.items;
+                    return this.items.filter(i =>
+                        i.name.toLowerCase().includes(q) || i.url.toLowerCase().includes(q));
+                }
+            }" @click.outside="open = false" @keydown.escape="open = false">
+            <button type="button" class="plugsent-switcher-btn" @click="open = !open">
+                {{ $this->site->name }}
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="plugsent-switcher-chev"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+            </button>
+            <div class="plugsent-switcher-menu" x-show="open" x-cloak x-transition.opacity.duration.100ms>
+                <input type="text" class="plugsent-switcher-search" placeholder="Find site…" x-model="q" autofocus>
+                <div class="plugsent-switcher-list">
+                    <template x-for="s in filtered" :key="s.id">
+                        <a :href="s.view_url + '?tab=' + tab"
+                           class="plugsent-switcher-item"
+                           :class="{ 'plugsent-switcher-current': s.id === current }">
+                            <strong x-text="s.name"></strong>
+                            <span class="plugsent-item-slug" x-text="s.url"></span>
+                        </a>
+                    </template>
+                    <template x-if="filtered.length === 0">
+                        <p class="plugsent-empty">No matching sites.</p>
+                    </template>
+                </div>
+                <a href="{{ \App\Filament\Resources\Sites\SiteResource::getUrl('index') }}" class="plugsent-switcher-all">
+                    All sites
+                </a>
+            </div>
+        </div>
+
         <a href="{{ $this->site->url }}" target="_blank" rel="noopener" class="plugsent-site-url">
             {{ $this->site->url }}
         </a>
