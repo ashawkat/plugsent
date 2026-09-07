@@ -169,8 +169,10 @@
                 </div>
 
                 <div class="plugsent-security-checks">
-                    @php($failed = collect($security['checks'])->reject(fn ($c) => $c['passed']))
-                    @php($passed = collect($security['checks'])->filter(fn ($c) => $c['passed']))
+                    @php
+                        $failed = collect($security['checks'])->reject(fn ($c) => $c['passed']);
+                        $passed = collect($security['checks'])->filter(fn ($c) => $c['passed']);
+                    @endphp
                     <h3>Attention needed <span class="plugsent-badge plugsent-badge-danger">{{ $failed->count() }}</span></h3>
                     @if($failed->isEmpty())
                         <p class="plugsent-muted">Everything checks out.</p>
