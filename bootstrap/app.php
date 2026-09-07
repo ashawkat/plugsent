@@ -24,4 +24,18 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // TEMPORARY debug aid: mirror unhandled exceptions to a public file
+        // so they can be read without server shell access. Remove after use.
+        $exceptions->render(function (Throwable $e, Request $request) {
+            @file_put_contents(
+                public_path('debug-last-error.log'),
+                now()->toIso8601String().' '.$request->method().' '.$request->path()."\n"
+                    .get_class($e).': '.$e->getMessage()."\n"
+                    .$e->getTraceAsString()."\n\n",
+                FILE_APPEND,
+            );
+
+            return null;
+        });
     })->create();
