@@ -213,11 +213,11 @@
                                         {{ $item->active ? 'active' : 'inactive' }}
                                     </span>
                                     @if(($item->vuln_count ?? 0) > 0)
-                                        @php $vulnTitles = $this->vulnerabilityTitlesFor($item); @endphp
-                                        <span class="plugsent-state plugsent-state-down"
-                                              title="{{ $vulnTitles ? \Illuminate\Support\Str::limit($vulnTitles, 200) : 'Known vulnerabilities' }}">
+                                        <button type="button" class="plugsent-state plugsent-state-down plugsent-vuln-badge"
+                                                title="View vulnerability details"
+                                                wire:click="openVulnerabilities('{{ $context }}', '{{ $item->slug }}', @js($item->name), {{ $item->update_available ? 'true' : 'false' }})">
                                             ⚠ {{ $item->vuln_count }} vulnerable
-                                        </span>
+                                        </button>
                                     @endif
                                 </td>
                                 <td class="plugsent-cell-actions">
@@ -310,4 +310,107 @@
             </div>
         </div>
     @endforeach
+
+    {{-- Vulnerability detail modal --}}
+    @if($this->vulnDetail !== null)
+        @php
+            $vulns = $this->vulnerabilitiesFor($this->vulnDetail['context'], $this->vulnDetail['slug']);
+            $hasUpdate = $this->vulnDetail['update_available'];
+        @endphp
+        <div class="plugsent-vuln-overlay" wire:click="closeVulnerabilities" x-data x-cloak>
+            <div class="plugsent-vuln-modal" wire:click.stop x-on:keydown.escape.window="$wire.closeVulnerabilities()">
+                <div class="plugsent-vuln-head">
+                    <div>
+                        <h3>{{ $this->vulnDetail['name'] }}</h3>
+                        <span class="plugsent-item-slug">{{ $this->vulnDetail['slug'] }}</span>
+                    </div>
+                    <button type="button" class="plugsent-btn plugsent-btn-icon" aria-label="Close"
+                            wire:click="closeVulnerabilities">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+
+                <div class="plugsent-vuln-body">
+                    @forelse($vulns as $vuln)
+                        @php
+                            $bucket = \App\Filament\Resources\Sites\Pages\ViewSite::cvssBucket($vuln->cvss !== null ? (float) $vuln->cvss : null);
+                            $range = \App\Filament\Resources\Sites\Pages\ViewSite::affectedRangeText($vuln);
+                            $description = \App\Filament\Resources\Sites\Pages\ViewSite::descriptionFor($vuln);
+                            $references = \App\Filament\Resources\Sites\Pages\ViewSite::referencesFor($vuln);
+                        @endphp
+                        <div class="plugsent-vuln-card">
+                            <div class="plugsent-vuln-card-head">
+                                <span class="plugsent-vuln-severity plugsent-vuln-severity-{{ $bucket }}">
+                                    {{ ucfirst($bucket) }}{{ $vuln->cvss !== null ? ' · CVSS '.$vuln->cvss : '' }}
+                                </span>
+                                <span class="plugsent-muted">
+                                    {{ $vuln->published_at?->format('M j, Y') ?? 'Unknown date' }}
+                                </span>
+                            </div>
+
+                            <p class="plugsent-vuln-title">{{ $vuln->title }}</p>
+
+                            <dl class="plugsent-vuln-facts">
+                                @if($vuln->cve)
+                                    <div>
+                                        <dt>CVE</dt>
+                                        <dd>
+                                            <a href="https://nvd.nist.gov/vuln/detail/{{ $vuln->cve }}" target="_blank" rel="noopener">{{ $vuln->cve }}</a>
+                                        </dd>
+                                    </div>
+                                @endif
+                                <div>
+                                    <dt>Affects</dt>
+                                    <dd>{{ $range }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Fix status</dt>
+                                    <dd>
+                                        @if($vuln->patched)
+                                            <span class="plugsent-state plugsent-state-up">Patched{{ $vuln->patched_version ? ' in '.$vuln->patched_version : '' }}</span>
+                                        @else
+                                            <span class="plugsent-state plugsent-state-down">No patch available</span>
+                                        @endif
+                                    </dd>
+                                </div>
+                            </dl>
+
+                            @if($description)
+                                <p class="plugsent-vuln-description">{{ $description }}</p>
+                            @endif
+
+                            <div class="plugsent-vuln-advice">
+                                @if($vuln->patched)
+                                    @if($hasUpdate)
+                                        Update it — a patched release is available. Use the update button on the row above, or "Update all".
+                                    @else
+                                        Update <strong>{{ $this->vulnDetail['name'] }}</strong> to
+                                        {{ $vuln->patched_version ? 'version '.$vuln->patched_version : 'the latest version' }}
+                                        as soon as an update is published.
+                                    @endif
+                                @else
+                                    No official patch exists yet. Consider deactivating or removing
+                                    <strong>{{ $this->vulnDetail['name'] }}</strong> until the vendor ships a fix,
+                                    and review the references below for mitigation details.
+                                @endif
+                            </div>
+
+                            <div class="plugsent-vuln-links">
+                                <a href="https://www.wordfence.com/threat-intel/vulnerabilities/ids/{{ preg_replace('/-r\d+$/', '', $vuln->external_id) }}.html" target="_blank" rel="noopener">
+                                    Wordfence entry ↗
+                                </a>
+                                @foreach($references as $refUrl)
+                                    <a href="{{ $refUrl }}" target="_blank" rel="noopener">
+                                        {{ parse_url($refUrl, PHP_URL_HOST) }} ↗
+                                    </a>
+                                @endforeach
+                            </div>
+                        </div>
+                    @empty
+                        <p class="plugsent-empty">No matching records in the local feed — try re-syncing the vulnerability feed in Settings.</p>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    @endif
 </x-filament-panels::page>

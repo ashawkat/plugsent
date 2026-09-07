@@ -42,6 +42,14 @@ class ViewSite extends Page
     ];
 
     /**
+     * The inventory item whose vulnerability list is shown in the modal,
+     * as [context, slug, name, update_available]. Null = modal closed.
+     *
+     * @var array{context: string, slug: string, name: string, update_available: bool}|null
+     */
+    public ?array $vulnDetail = null;
+
+    /**
      * Status-cell labels per action type and command status.
      *
      * @var array<string, array{queued: string, progress: string, done: string, failed: string}>
@@ -478,6 +486,104 @@ class ViewSite extends Page
             SiteCommand::STATUS_FAILED => 'Update failed',
             default => null,
         };
+    }
+
+    /**
+     * All known vulnerabilities matching a software slug, most severe first.
+     */
+    public function vulnerabilitiesFor(string $context, string $slug): Collection
+    {
+        return Vulnerability::query()
+            ->where('software_type', $context)
+            ->where('software_slug', $slug)
+            ->orderByDesc('cvss')
+            ->orderByDesc('published_at')
+            ->get();
+    }
+
+    public function openVulnerabilities(string $context, string $slug, string $name, bool $updateAvailable): void
+    {
+        $this->vulnDetail = [
+            'context' => $context,
+            'slug' => $slug,
+            'name' => $name,
+            'update_available' => $updateAvailable,
+        ];
+    }
+
+    public function closeVulnerabilities(): void
+    {
+        $this->vulnDetail = null;
+    }
+
+    /**
+     * Severity label/color bucket for a CVSS score.
+     */
+    public static function cvssBucket(?float $cvss): string
+    {
+        return match (true) {
+            $cvss === null => 'unknown',
+            $cvss >= 9.0 => 'critical',
+            $cvss >= 7.0 => 'high',
+            $cvss >= 4.0 => 'medium',
+            default => 'low',
+        };
+    }
+
+    /**
+     * Human-readable affected-version range, e.g. "versions 1.2 – 3.4".
+     */
+    public static function affectedRangeText(Vulnerability $vulnerability): string
+    {
+        if ($vulnerability->affected_from === null && $vulnerability->affected_to === null) {
+            return 'All versions';
+        }
+
+        $from = $vulnerability->affected_from
+            ? ($vulnerability->affected_from_inclusive ? '≥ ' : '> ').$vulnerability->affected_from
+            : null;
+        $to = $vulnerability->affected_to
+            ? ($vulnerability->affected_to_inclusive ? '≤ ' : '< ').$vulnerability->affected_to
+            : null;
+
+        return collect([$from, $to])->filter()->implode(' and ');
+    }
+
+    /**
+     * Plain-text description extracted from the raw feed record.
+     */
+    public static function descriptionFor(Vulnerability $vulnerability, int $limit = 700): ?string
+    {
+        $description = data_get($vulnerability->raw, 'description')
+            ?? data_get($vulnerability->raw, 'software.0.description');
+
+        if (! is_string($description) || trim($description) === '') {
+            return null;
+        }
+
+        $text = trim(strip_tags($description));
+
+        return $text === '' ? null : Str::limit($text, $limit);
+    }
+
+    /**
+     * Reference URLs attached to the raw feed record.
+     */
+    public static function referencesFor(Vulnerability $vulnerability): array
+    {
+        $references = data_get($vulnerability->raw, 'references');
+
+        if (! is_array($references)) {
+            return [];
+        }
+
+        return collect($references)
+            ->map(fn ($url) => is_string($url) ? $url : (string) ($url['url'] ?? ''))
+            ->filter(fn (string $url) => str_starts_with($url, 'http'))
+            ->unique()
+            ->values()
+            ->take(5)
+            ->all();
     }
 
     /**

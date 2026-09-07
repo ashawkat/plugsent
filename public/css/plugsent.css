@@ -691,3 +691,219 @@ body {
     border-color: #b91c1c;
     color: #fecaca;
 }
+
+/* Vulnerability detail badge + modal */
+.plugsent-vuln-badge {
+    cursor: pointer;
+}
+
+.plugsent-vuln-badge:hover {
+    filter: brightness(0.95);
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
+}
+
+.dark .plugsent-vuln-badge:hover {
+    filter: brightness(1.1);
+}
+
+.plugsent-vuln-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(15, 23, 42, 0.55);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 4rem 1rem 2rem;
+    overflow-y: auto;
+}
+
+.plugsent-vuln-modal {
+    background: #ffffff;
+    border-radius: 0.75rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+    width: 100%;
+    max-width: 680px;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.dark .plugsent-vuln-modal {
+    background: #1f2937;
+    color: #f9fafb;
+}
+
+.plugsent-vuln-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.dark .plugsent-vuln-head {
+    border-bottom-color: #374151;
+}
+
+.plugsent-vuln-head h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+.plugsent-vuln-body {
+    padding: 1rem 1.25rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.plugsent-vuln-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.875rem 1rem;
+}
+
+.dark .plugsent-vuln-card {
+    border-color: #374151;
+}
+
+.plugsent-vuln-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.plugsent-vuln-severity {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.plugsent-vuln-severity-critical {
+    background: #7f1d1d;
+    color: #fff;
+}
+
+.plugsent-vuln-severity-high {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.plugsent-vuln-severity-medium {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.plugsent-vuln-severity-low {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.plugsent-vuln-severity-unknown {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.dark .plugsent-vuln-severity-high {
+    background: #7f1d1d;
+    color: #fecaca;
+}
+
+.dark .plugsent-vuln-severity-medium {
+    background: #78350f;
+    color: #fde68a;
+}
+
+.dark .plugsent-vuln-severity-low {
+    background: #14532d;
+    color: #bbf7d0;
+}
+
+.dark .plugsent-vuln-severity-unknown {
+    background: #374151;
+    color: #d1d5db;
+}
+
+.plugsent-vuln-title {
+    margin: 0 0 0.5rem;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.plugsent-vuln-facts {
+    margin: 0 0 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    font-size: 0.85rem;
+}
+
+.plugsent-vuln-facts dt {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+}
+
+.dark .plugsent-vuln-facts dt {
+    color: #9ca3af;
+}
+
+.plugsent-vuln-facts dd {
+    margin: 0.125rem 0 0;
+}
+
+.plugsent-vuln-description {
+    margin: 0 0 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.55;
+    color: #374151;
+}
+
+.dark .plugsent-vuln-description {
+    color: #d1d5db;
+}
+
+.plugsent-vuln-advice {
+    margin: 0 0 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    font-size: 0.85rem;
+    color: #1e40af;
+}
+
+.dark .plugsent-vuln-advice {
+    background: #1e3a5f;
+    border-color: #1e40af;
+    color: #bfdbfe;
+}
+
+.plugsent-vuln-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    font-size: 0.8rem;
+}
+
+.plugsent-vuln-links a {
+    color: #2563eb;
+    text-decoration: none;
+}
+
+.plugsent-vuln-links a:hover {
+    text-decoration: underline;
+}
+
+.dark .plugsent-vuln-links a {
+    color: #93c5fd;
+}
