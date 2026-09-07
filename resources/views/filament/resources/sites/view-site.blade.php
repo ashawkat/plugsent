@@ -430,8 +430,8 @@
                     No security scan yet. A scan is queued and will complete on the site's next check-in.
                 </p>
             @else
-                <div class="plugsent-security-grid">
-                    <div class="plugsent-security-score">
+                <div class="plugsent-health-grid">
+                    <div class="plugsent-health-score">
                         <span class="plugsent-security-score-num plugsent-security-score-{{ $security['score'] >= 80 ? 'good' : ($security['score'] >= 50 ? 'fair' : 'poor') }}">
                             {{ $security['score'] }}
                         </span>
@@ -454,7 +454,7 @@
                                             <span class="plugsent-muted">{{ $check['detail'] }}</span>
                                         </div>
                                         @if($check['fix'] && $connected)
-                                            <button type="button" class="plugsent-btn"
+                                            <button type="button" class="plugsent-btn plugsent-btn-sm"
                                                     wire:click="requestHardening('{{ $check['fix'] }}', true)"
                                                     @if($this->hardeningInFlight($check['fix'], true)) disabled @endif>
                                                 @if($this->hardeningInFlight($check['fix'], true)) Applying… @else Fix @endif
@@ -465,38 +465,43 @@
                             </ul>
                         @endif
 
-                        <h3>Passed <span class="plugsent-badge plugsent-badge-ok">{{ count($security['checks']) - $failedChecks->count() }}</span></h3>
+                        <h3 class="plugsent-checks-heading">Passed <span class="plugsent-badge plugsent-badge-ok">{{ count($security['checks']) - $failedChecks->count() }}</span></h3>
                         <ul class="plugsent-security-list plugsent-security-list-passed">
                             @foreach(collect($security['checks'])->filter(fn ($c) => $c['passed']) as $check)
                                 <li><strong>{{ $check['label'] }}</strong> <span class="plugsent-muted">{{ $check['detail'] }}</span></li>
                             @endforeach
                         </ul>
                     </div>
-
-                    <div class="plugsent-security-hardening">
-                        <h3>Protections</h3>
-                        <p class="plugsent-muted">Applied on the site by the connector.</p>
-                        <ul class="plugsent-security-list">
-                            @foreach($hardeningLabels as $key => $hlabel)
-                                @php
-                                    $on = (bool) ($hardening[$key] ?? false);
-                                    $toggling = $this->hardeningInFlight($key, ! $on);
-                                @endphp
-                                <li>
-                                    <div>
-                                        <strong>{{ $hlabel }}</strong>
-                                        <span class="plugsent-state plugsent-state-{{ $on ? 'up' : 'inactive' }}">{{ $on ? 'on' : 'off' }}</span>
-                                    </div>
-                                    <button type="button" class="plugsent-btn plugsent-btn-sm"
-                                            wire:click="requestHardening('{{ $key }}', {{ $on ? 'false' : 'true' }})"
-                                            @if($toggling) disabled @endif>
-                                        @if($toggling) … @elseif($on) Turn off @else Turn on @endif
-                                    </button>
-                                </li>
-                            @endforeach
-                        </ul>
-                    </div>
                 </div>
+            @endif
+        </div>
+
+        <div class="plugsent-category">
+            <div class="plugsent-category-head">
+                <h2>Protections</h2>
+            </div>
+            @if($securitySupported && $this->site->security_scanned_at !== null)
+                <div class="plugsent-hardening-grid">
+                    @foreach($hardeningLabels as $key => $hlabel)
+                        @php
+                            $on = (bool) ($hardening[$key] ?? false);
+                            $toggling = $this->hardeningInFlight($key, ! $on);
+                        @endphp
+                        <div class="plugsent-hardening-item">
+                            <div>
+                                <strong>{{ $hlabel }}</strong>
+                                <span class="plugsent-state plugsent-state-{{ $on ? 'up' : 'inactive' }}">{{ $on ? 'on' : 'off' }}</span>
+                            </div>
+                            <button type="button" class="plugsent-btn plugsent-btn-sm"
+                                    wire:click="requestHardening('{{ $key }}', {{ $on ? 'false' : 'true' }})"
+                                    @if($toggling) disabled @endif>
+                                @if($toggling) Applying… @elseif($on) Turn off @else Turn on @endif
+                            </button>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <p class="plugsent-empty">Protections become available after the first security scan (connector 0.13.0+).</p>
             @endif
         </div>
 

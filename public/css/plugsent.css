@@ -1181,3 +1181,74 @@ body {
 .plugsent-vuln-overlay {
     backdrop-filter: blur(2px);
 }
+
+/* Site page: breathing room between section cards */
+.plugsent-category + .plugsent-category,
+.plugsent-category + .plugsent-process,
+.plugsent-process + .plugsent-category {
+    margin-top: 20px;
+}
+
+/* Site health: score column + checks, full width */
+.plugsent-health-grid {
+    display: grid;
+    grid-template-columns: 170px minmax(0, 1fr);
+    gap: 1.75rem;
+    padding: 1.5rem 1.5rem 1.25rem;
+}
+
+@media (max-width: 768px) {
+    .plugsent-health-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.plugsent-health-score {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    position: sticky;
+    top: 1rem;
+    align-self: start;
+}
+
+.plugsent-security-checks h3 {
+    padding: 0 0.125rem;
+}
+
+.plugsent-checks-heading {
+    margin-top: 1.5rem;
+}
+
+/* Protections: two-column grid of toggle cards */
+.plugsent-hardening-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 0.75rem;
+    padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.plugsent-hardening-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+}
+
+.dark .plugsent-hardening-item {
+    border-color: #374151;
+}
+
+.plugsent-hardening-item > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+/* Narrower panel sidebar, more room for content */
+:root {
+    --sidebar-width: 15rem;
+}
