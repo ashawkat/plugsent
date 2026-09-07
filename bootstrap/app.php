@@ -29,7 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // so they can be read without server shell access. Remove after use.
         $exceptions->render(function (Throwable $e, Request $request) {
             @file_put_contents(
-                public_path('debug-last-error.log'),
+                public_path('debug-last-error.txt'),
                 now()->toIso8601String().' '.$request->method().' '.$request->path()."\n"
                     .get_class($e).': '.$e->getMessage()."\n"
                     .$e->getTraceAsString()."\n\n",
