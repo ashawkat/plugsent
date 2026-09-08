@@ -51,12 +51,16 @@ class EvaluateSiteSecurity
         $hardening = (array) ($site->hardening ?? []);
 
         $checks = [
-            $this->check('ssl', 'HTTPS enabled', (bool) ($facts['ssl'] ?? false), $facts['ssl'] ?? false
+            // The site's own URL is authoritative. The connector's is_ssl()
+            // fact reflects the scheme of its WP-Cron poll request, which is
+            // plain HTTP on proxy-fronted (e.g. Cloudflare) origins even when
+            // the public site is HTTPS.
+            $this->check('ssl', 'HTTPS enabled', str_starts_with(strtolower((string) $site->url), 'https://'), str_starts_with(strtolower((string) $site->url), 'https://')
                 ? 'HTTPS is properly configured for this site.'
-                : 'The site is not served over HTTPS — logins and data travel unencrypted.', null),
+                : 'The site URL is not HTTPS — logins and data travel unencrypted.', null),
 
             $this->check('wp_debug', 'WP_DEBUG disabled', ! ($facts['wp_debug'] ?? false), ($facts['wp_debug'] ?? false)
-                ? 'Debug mode can leak file paths, database queries, and stack traces to visitors.'
+                ? 'The scan found WP_DEBUG enabled in wp-config.php — it can leak file paths, database queries, and stack traces to visitors. Set it to false if this is not a development site.'
                 : 'Debug mode is off.', null),
 
             $this->check('core_updated', 'WordPress core up to date', $site->inventory()->where('context', 'core')->where('update_available', true)->doesntExist()
@@ -66,9 +70,9 @@ class EvaluateSiteSecurity
 
             $this->check('indexable_or_intentional', 'Search-engine visibility configured', true, 'blog_public is '.(($facts['blog_public'] ?? true) ? 'on (site indexable)' : 'off (discouraging search engines — fine if intentional).'), null),
 
-            $this->check('no_inactive_plugins', 'No inactive plugins', (int) ($facts['inactive_plugins'] ?? 0) === 0, (int) ($facts['inactive_plugins'] ?? 0).' inactive plugin(s). Deactivated plugins still expose code that attackers can probe.', null),
+            $this->check('no_inactive_plugins', 'No inactive plugins', (int) ($facts['inactive_plugins'] ?? 0) === 0, (int) ($facts['inactive_plugins'] ?? 0).' deactivated plugin(s) on the site. Deactivated plugins still expose code that attackers can probe — delete the ones you do not need.', null),
 
-            $this->check('no_inactive_themes', 'No inactive themes', (int) ($facts['inactive_themes'] ?? 0) === 0, (int) ($facts['inactive_themes'] ?? 0).' inactive theme(s) on disk.', null),
+            $this->check('no_inactive_themes', 'No inactive themes', (int) ($facts['inactive_themes'] ?? 0) === 0, (int) ($facts['inactive_themes'] ?? 0).' non-active theme(s) found in the site\'s themes directory (everything except the active theme — check Appearance → Themes). Delete the ones you do not use.', null),
 
             $this->check('no_vulnerable_software', 'No known vulnerable software', $site->inventory()->where('vuln_count', '>', 0)->doesntExist(), $site->inventory()->where('vuln_count', '>', 0)->count().' item(s) with known vulnerabilities.', null),
 
