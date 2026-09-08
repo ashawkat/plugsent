@@ -801,7 +801,10 @@ class ViewSite extends Page
     public static function affectedRangeText(Vulnerability $vulnerability): string
     {
         if ($vulnerability->affected_from === null && $vulnerability->affected_to === null) {
-            return 'All versions';
+            // The feed gave no range, only the version the fix shipped in.
+            return $vulnerability->patched_version !== null
+                ? 'Versions below '.$vulnerability->patched_version
+                : 'All versions';
         }
 
         $from = $vulnerability->affected_from
