@@ -35,7 +35,7 @@
             @if ($summary['weakest'] !== null)
                 <li>
                     <span class="plugsent-dot plugsent-dot-bad"></span>
-                    <span>Weakest: <strong>{{ $summary['weakest']->name }}</strong> — {{ $summary['weakest']->security_score }}</span>
+                    <span>Weakest: <strong>{{ $summary['weakest']['name'] }}</strong> — {{ $summary['weakest']['score'] }}</span>
                 </li>
             @endif
         </ul>

@@ -14,7 +14,7 @@
         <ul class="plugsent-up-rows">
             @foreach ($rows as $row)
                 <li class="plugsent-up-row">
-                    <a href="{{ $row['url'] }}" class="plugsent-up-site">{{ $row['site']->name }}</a>
+                    <a href="{{ $row['url'] }}" class="plugsent-up-site">{{ $row['name'] }}</a>
                     <span class="plugsent-up-bars">
                         @foreach ($row['days'] as $index => $day)
                             <i class="plugsent-up-bar plugsent-up-bar-{{ $day }}" title="{{ $row['dayLabels'][$index] }}"></i>

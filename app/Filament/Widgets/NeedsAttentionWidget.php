@@ -26,19 +26,16 @@ class NeedsAttentionWidget extends Widget
     {
         $summary = app(GetFleetSummary::class)(Filament::getTenant(), auth()->user());
 
-        $uptimeBySite = collect($summary['uptime_rows'])->keyBy(fn (array $row): int => $row['site']->getKey());
-
-        $rows = array_map(function (array $row) use ($summary, $uptimeBySite): array {
-            $site = $row['site'];
-            $perSite = $summary['per_site'][$site->getKey()] ?? ['updates' => 0, 'vulns' => 0];
-
+        $rows = array_map(function (array $row) use ($summary): array {
             return [
-                'site' => $site,
-                'url' => SiteResource::getUrl('view', ['record' => $site->getKey()]),
-                'score' => $site->security_score,
-                'updates' => $perSite['updates'],
-                'vulns' => $perSite['vulns'],
-                'uptime' => $uptimeBySite->get($site->getKey())['pct'] ?? null,
+                'id' => $row['site_id'],
+                'name' => $row['site_name'],
+                'url' => $row['site_url'],
+                'view_url' => SiteResource::getUrl('view', ['record' => $row['site_id']]),
+                'score' => $row['score'],
+                'updates' => $row['updates'],
+                'vulns' => $row['vulns'],
+                'uptime' => $this->uptimeFor($summary, $row['site_id']),
                 'reasons' => $row['reasons'],
             ];
         }, $summary['attention']);
@@ -47,5 +44,19 @@ class NeedsAttentionWidget extends Widget
             'rows' => $rows,
             'sitesUrl' => SiteResource::getUrl('index'),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $summary
+     */
+    private function uptimeFor(array $summary, int $siteId): ?float
+    {
+        foreach ($summary['uptime_rows'] as $row) {
+            if ($row['site_id'] === $siteId) {
+                return $row['pct'];
+            }
+        }
+
+        return null;
     }
 }

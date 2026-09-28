@@ -219,7 +219,7 @@ class SitesTable
         $summary = app(GetFleetSummary::class)(Filament::getTenant(), auth()->user());
 
         $row = collect($summary['uptime_rows'])
-            ->first(fn (array $row): bool => $row['site']->getKey() === $record->getKey());
+            ->first(fn (array $row): bool => $row['site_id'] === $record->getKey());
 
         if ($row === null) {
             return '<span class="plugsent-pill plugsent-pill-none">—</span>';

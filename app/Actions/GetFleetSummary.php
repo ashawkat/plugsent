@@ -9,13 +9,17 @@ use App\Models\UptimeIncident;
 use App\Models\User;
 use App\Models\Vulnerability;
 use App\Models\Workspace;
-use Illuminate\Support\Collection;
+use App\Support\CommandSubject;
 use Illuminate\Support\Facades\Cache;
 
 /**
  * One pass over a workspace's visible sites producing every number the
  * fleet dashboard, the Sites summary strip, and the daily snapshot need.
  * Cached for a minute so the dashboard's widgets share a single pass.
+ *
+ * The cached payload must stay scalar: Eloquent models do not survive the
+ * cache's unserialize() roundtrip (they come back as
+ * __PHP_Incomplete_Class), so site references are ids + names.
  */
 class GetFleetSummary
 {
@@ -38,10 +42,10 @@ class GetFleetSummary
      *     checks: array<int, array{key: string, label: string, passed: int, total: int}>,
      *     checks_avg_passing: ?float,
      *     uptime_avg: ?float,
-     *     uptime_rows: array<int, array{site: Site, pct: float, days: array<int, array{date: string, downtime_seconds: int, label: string}>}>,
-     *     attention: array<int, array{site: Site, reasons: array<int, string>}>,
-     *     weakest: ?Site,
-     *     activity: Collection<int, SiteCommand>,
+     *     uptime_rows: array<int, array{site_id: int, site_name: string, pct: float, days: array<int, array{date: string, downtime_seconds: int, label: string}>}>,
+     *     attention: array<int, array{site_id: int, site_name: string, site_url: string, status: string, score: ?int, updates: int, vulns: int, reasons: array<int, string>}},
+     *     weakest: ?array{id: int, name: string, score: int},
+     *     activity: array<int, array{id: int, subject: string, status: string, site_id: int, site_name: string, when: string}>,
      * }
      */
     public function __invoke(Workspace $workspace, ?User $user = null): array
@@ -166,32 +170,40 @@ class GetFleetSummary
         foreach ($monitored as $site) {
             $rate = $computer($site, $incidentsBySite->get($site->getKey(), collect()));
 
-            $uptimeRows[] = ['site' => $site] + $rate;
+            $uptimeRows[] = ['site_id' => $site->getKey(), 'site_name' => $site->name] + $rate;
             $percentages[] = $rate['pct'];
         }
 
         // --- Sites that need attention, worst first, with reasons.
         $attention = $sites
             ->map(fn (Site $site): array => [
-                'site' => $site,
+                'site_id' => $site->getKey(),
+                'site_name' => $site->name,
+                'site_url' => $site->url,
+                'status' => $site->status,
+                'score' => $site->security_score,
+                'updates' => $perSite[$site->getKey()]['updates'],
+                'vulns' => $perSite[$site->getKey()]['vulns'],
                 'reasons' => $this->attentionReasons($site, $perSite[$site->getKey()], $failedKeysPerSite[$site->getKey()] ?? []),
             ])
             ->filter(fn (array $row): bool => $row['reasons'] !== [])
             ->sort(function (array $a, array $b): int {
-                $aDown = ! $a['site']->isConnected();
-                $bDown = ! $b['site']->isConnected();
+                $aDown = $a['status'] !== 'connected';
+                $bDown = $b['status'] !== 'connected';
 
                 if ($aDown !== $bDown) {
                     return $aDown ? -1 : 1;
                 }
 
-                return ($a['site']->security_score ?? 101) <=> ($b['site']->security_score ?? 101);
+                return ($a['score'] ?? 101) <=> ($b['score'] ?? 101);
             })
             ->values()
             ->take(8)
             ->all();
 
         $scored = $sites->filter(fn (Site $site): bool => $site->security_score !== null);
+        $weakestSite = $scored->isNotEmpty() ? $scored->sortBy('security_score')->first() : null;
+        $subjectFormatter = app(CommandSubject::class);
 
         return [
             'sites_total' => $sites->count(),
@@ -214,15 +226,24 @@ class GetFleetSummary
                 : null,
             'uptime_rows' => $uptimeRows,
             'attention' => $attention,
-            'weakest' => ($scored->isNotEmpty()
-                ? $scored->sortBy('security_score')->first()
-                : null),
+            'weakest' => $weakestSite !== null
+                ? ['id' => $weakestSite->getKey(), 'name' => $weakestSite->name, 'score' => (int) $weakestSite->security_score]
+                : null,
             'activity' => SiteCommand::query()
                 ->whereIn('site_id', $sites->pluck('id'))
                 ->with('site')
                 ->orderByDesc('id')
                 ->limit(6)
-                ->get(),
+                ->get()
+                ->map(fn (SiteCommand $command): array => [
+                    'id' => $command->getKey(),
+                    'subject' => $subjectFormatter->format($command),
+                    'status' => $command->status,
+                    'site_id' => $command->site_id,
+                    'site_name' => $command->site?->name ?? '—',
+                    'when' => $command->created_at?->diffForHumans() ?? '',
+                ])
+                ->all(),
         ];
     }
 

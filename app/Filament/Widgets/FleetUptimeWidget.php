@@ -45,8 +45,9 @@ class FleetUptimeWidget extends Widget
                 }, $row['days']);
 
                 return [
-                    'site' => $row['site'],
-                    'url' => SiteResource::getUrl('view', ['record' => $row['site']->getKey()]),
+                    'id' => $row['site_id'],
+                    'name' => $row['site_name'],
+                    'url' => SiteResource::getUrl('view', ['record' => $row['site_id']]),
                     'pct' => $row['pct'],
                     'days' => $days,
                     'dayLabels' => array_map(fn (array $day): string => $day['label'], $row['days']),

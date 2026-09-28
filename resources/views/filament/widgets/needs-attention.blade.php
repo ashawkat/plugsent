@@ -25,8 +25,8 @@
                     @foreach ($rows as $row)
                         <tr>
                             <td>
-                                <a href="{{ $row['url'] }}" class="plugsent-att-site">{{ $row['site']->name }}</a>
-                                <span class="plugsent-att-url">{{ $row['site']->url }}</span>
+                                <a href="{{ $row['view_url'] }}" class="plugsent-att-site">{{ $row['name'] }}</a>
+                                <span class="plugsent-att-url">{{ $row['url'] }}</span>
                             </td>
                             <td>
                                 @if ($row['score'] !== null)
