@@ -2,6 +2,7 @@
 
 namespace App\Actions;
 
+use App\Models\InventoryItem;
 use App\Models\Site;
 
 /**
@@ -50,6 +51,13 @@ class EvaluateSiteSecurity
         $facts = (array) ($site->security_facts ?? []);
         $hardening = (array) ($site->hardening ?? []);
 
+        // Read inventory through the relation so a fleet evaluation can
+        // eager-load it once instead of issuing queries per check.
+        $inventory = $site->inventory;
+        $vulnerableItems = $inventory->filter(
+            fn (InventoryItem $item): bool => (int) $item->vuln_count > 0,
+        )->values();
+
         $checks = [
             // The site's own URL is authoritative. The connector's is_ssl()
             // fact reflects the scheme of its WP-Cron poll request, which is
@@ -63,8 +71,8 @@ class EvaluateSiteSecurity
                 ? 'The scan found WP_DEBUG enabled in wp-config.php — it can leak file paths, database queries, and stack traces to visitors. Set it to false if this is not a development site.'
                 : 'Debug mode is off.', null),
 
-            $this->check('core_updated', 'WordPress core up to date', $site->inventory()->where('context', 'core')->where('update_available', true)->doesntExist()
-                && $site->inventory()->where('context', 'core')->exists(), 'Running WordPress '.($site->wp_version ?? '?').'.', null),
+            $this->check('core_updated', 'WordPress core up to date', $inventory->where('context', 'core')->isNotEmpty()
+                && $inventory->where('context', 'core')->doesntContain(fn (InventoryItem $item): bool => (bool) $item->update_available), 'Running WordPress '.($site->wp_version ?? '?').'.', null),
 
             $this->check('php_supported', 'PHP version receives security fixes', $this->phpSupported((string) ($facts['php_version'] ?? $site->php_version ?? '')), 'Running PHP '.($facts['php_version'] ?? $site->php_version ?? '?').'.', null),
 
@@ -74,7 +82,7 @@ class EvaluateSiteSecurity
 
             $this->check('no_inactive_themes', 'No inactive themes', (int) ($facts['inactive_themes'] ?? 0) === 0, (int) ($facts['inactive_themes'] ?? 0).' non-active theme(s) found in the site\'s themes directory (everything except the active theme — check Appearance → Themes). Delete the ones you do not use.', null),
 
-            $this->check('no_vulnerable_software', 'No known vulnerable software', $site->inventory()->where('vuln_count', '>', 0)->doesntExist(), $site->inventory()->where('vuln_count', '>', 0)->count().' item(s) with known vulnerabilities.', null),
+            $this->check('no_vulnerable_software', 'No known vulnerable software', $vulnerableItems->isEmpty(), $vulnerableItems->count().' item(s) with known vulnerabilities.', null),
 
             $this->check('file_editor', 'File editor disabled', ! empty($facts['disallow_file_edit']) || ! empty($hardening['disable_file_editor']), ! empty($facts['disallow_file_edit']) || ! empty($hardening['disable_file_editor'])
                 ? 'The built-in wp-admin file editor is disabled.'

@@ -2,8 +2,9 @@
 
 namespace App\Filament\Resources\Sites\Pages;
 
-use App\Actions\EnqueueSiteCommand;
 use App\Actions\CheckDomainSsl;
+use App\Actions\ComputeUptimeRate;
+use App\Actions\EnqueueSiteCommand;
 use App\Actions\EvaluateSiteSecurity;
 use App\Filament\Resources\Sites\SiteResource;
 use App\Models\InventoryItem;
@@ -12,6 +13,7 @@ use App\Models\SiteCommand;
 use App\Models\UpdateExclusion;
 use App\Models\UpdateRun;
 use App\Models\Vulnerability;
+use App\Support\CommandSubject;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
@@ -190,59 +192,7 @@ class ViewSite extends Page
      */
     public function uptimeRate(): array
     {
-        $since = now()->subDays(29)->startOfDay();
-        $windowStart = $since->getTimestamp();
-        $windowSeconds = max(1, now()->getTimestamp() - $windowStart);
-
-        $incidents = $this->site->uptimeIncidents()
-            ->where('started_at', '>', $since->copy()->subDays(2))
-            ->where('started_at', '>', now()->subDays(30))
-            ->get();
-
-        $downPerDay = array_fill(0, 30, 0);
-
-        foreach ($incidents as $incident) {
-            $start = max($incident->started_at->getTimestamp(), $windowStart);
-            $end = $incident->ended_at?->getTimestamp() ?? now()->getTimestamp();
-
-            for ($day = 0; $day < 30; $day++) {
-                $dayStart = $windowStart + $day * 86400;
-                $dayEnd = $dayStart + 86400;
-
-                $overlap = min($end, $dayEnd) - max($start, $dayStart);
-
-                if ($overlap > 0) {
-                    $downPerDay[$day] += $overlap;
-                }
-            }
-        }
-
-        $totalDown = array_sum($downPerDay);
-
-        $days = [];
-
-        foreach ($downPerDay as $index => $down) {
-            $date = $since->copy()->addDays($index);
-
-            if ($down === 0) {
-                $label = $date->format('M j').' — 100%';
-            } else {
-                $minutes = (int) floor($down / 60);
-                $pct = round((1 - $down / 86400) * 100, 2);
-                $label = $date->format('M j').' — '.$pct.'% ('.$minutes.'m downtime)';
-            }
-
-            $days[] = [
-                'date' => $date->format('M j'),
-                'downtime_seconds' => $down,
-                'label' => $label,
-            ];
-        }
-
-        return [
-            'pct' => round((1 - $totalDown / $windowSeconds) * 100, 2),
-            'days' => $days,
-        ];
+        return app(ComputeUptimeRate::class)($this->site);
     }
 
     /**
@@ -786,13 +736,7 @@ class ViewSite extends Page
      */
     public static function cvssBucket(?float $cvss): string
     {
-        return match (true) {
-            $cvss === null => 'unknown',
-            $cvss >= 9.0 => 'critical',
-            $cvss >= 7.0 => 'high',
-            $cvss >= 4.0 => 'medium',
-            default => 'low',
-        };
+        return Vulnerability::severityBucket($cvss);
     }
 
     /**
@@ -904,19 +848,6 @@ class ViewSite extends Page
      */
     public function processSubject(SiteCommand $command): string
     {
-        $slug = (string) ($command->payload['slug'] ?? '');
-
-        return match ($command->type) {
-            'update.run' => 'Updating · '.$slug,
-            'update.safe' => 'Safe updating · '.$slug,
-            'restore.apply' => 'Restoring · '.$slug,
-            'inventory.get' => 'Refreshing inventory',
-            'plugin.activate' => 'Activating · '.$slug,
-            'plugin.deactivate' => 'Deactivating · '.$slug,
-            'plugin.delete' => 'Deleting plugin · '.$slug,
-            'theme.activate' => 'Switching theme · '.$slug,
-            'theme.delete' => 'Deleting theme · '.$slug,
-            default => $command->type,
-        };
+        return app(CommandSubject::class)->format($command);
     }
 }

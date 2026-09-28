@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Sites;
 
+use App\Actions\ResolveVisibleSites;
 use App\Filament\Resources\Sites\Pages\AdminLogin;
 use App\Filament\Resources\Sites\Pages\CreateSite;
 use App\Filament\Resources\Sites\Pages\EditSite;
@@ -38,10 +39,7 @@ class SiteResource extends Resource
         // Workspace admins/owners see everything. Regular members only see
         // sites in projects that are open or explicitly assigned to them.
         if ($user && $tenant && ! $user->isWorkspaceAdmin($tenant)) {
-            $query->whereHas('project', fn (Builder $p) => $p->where(
-                fn (Builder $q) => $q->whereDoesntHave('members')
-                    ->orWhereHas('members', fn (Builder $m) => $m->whereKey($user->getKey())),
-            ));
+            $query = app(ResolveVisibleSites::class)->restrictToMemberProjects($query, $user);
         }
 
         return $query;
