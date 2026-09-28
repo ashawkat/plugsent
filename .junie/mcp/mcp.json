@@ -1,0 +1,11 @@
+{
+    "mcpServers": {
+        "laravel-boost": {
+            "command": "/Users/adlord/Library/Application Support/Herd/bin/php83",
+            "args": [
+                "/Users/adlord/Desktop/AI Projects/site-manager/artisan",
+                "boost:mcp"
+            ]
+        }
+    }
+}

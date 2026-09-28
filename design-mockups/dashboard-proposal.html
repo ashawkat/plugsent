@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plugsent — Dashboard proposal</title>
+<style>
+/* Brand font: same self-hosted file the panel uses (falls back gracefully if opened outside the repo) */
+@font-face {
+    font-family: 'Google Sans';
+    font-style: normal;
+    font-weight: 400 700;
+    src: url('../public/fonts/google-sans-latin.woff2') format('woff2');
+}
+
+:root {
+    --font: 'Google Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --doc-bg: #eef0f4;
+    --canvas: #f4f5f7;
+    --card: #ffffff;
+    --border: #e5e7eb;
+    --border-soft: #eceef2;
+    --text: #111827;
+    --text-2: #6b7280;
+    --text-3: #9ca3af;
+    --indigo: #4f46e5;
+    --indigo-strong: #4338ca;
+    --indigo-soft: #eef2ff;
+    --ok: #16a34a;
+    --ok-soft: #dcfce7;
+    --ok-text: #15803d;
+    --warn: #d97706;
+    --warn-soft: #fef3c7;
+    --warn-text: #b45309;
+    --danger: #dc2626;
+    --danger-soft: #fee2e2;
+    --danger-text: #b91c1c;
+    --track: #eef0f3;
+    --chip-bg: #f3f4f6;
+}
+[data-theme="dark"] {
+    --doc-bg: #07080b;
+    --canvas: #0f1115;
+    --card: #171a1f;
+    --border: #262a31;
+    --border-soft: #20242a;
+    --text: #f3f4f6;
+    --text-2: #9ca3af;
+    --text-3: #6b7280;
+    --indigo: #818cf8;
+    --indigo-strong: #a5b4fc;
+    --indigo-soft: #26264f;
+    --ok: #4ade80;
+    --ok-soft: #10321f;
+    --ok-text: #4ade80;
+    --warn: #fbbf24;
+    --warn-soft: #382a0d;
+    --warn-text: #fbbf24;
+    --danger: #f87171;
+    --danger-soft: #3b1414;
+    --danger-text: #f87171;
+    --track: #22262d;
+    --chip-bg: #22262d;
+}
+
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    font-family: var(--font);
+    background: var(--doc-bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+}
+a { color: var(--indigo); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ---------- document chrome ---------- */
+.doc { max-width: 1240px; margin: 0 auto; padding: 34px 26px 80px; }
+.doc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.doc-head h1 { font-size: 23px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.01em; }
+.doc-head p { font-size: 13.5px; color: var(--text-2); margin: 0; max-width: 720px; line-height: 1.55; }
+.theme-toggle {
+    font-family: var(--font); font-size: 12.5px; font-weight: 600;
+    color: var(--text); background: var(--card); border: 1px solid var(--border);
+    border-radius: 999px; padding: 7px 14px; cursor: pointer; white-space: nowrap;
+}
+.theme-toggle:hover { border-color: var(--indigo); color: var(--indigo); }
+
+.section-label { margin: 44px 0 6px; display: flex; align-items: center; gap: 10px; }
+.section-label h2 { font-size: 15.5px; font-weight: 700; margin: 0; }
+.section-num {
+    width: 22px; height: 22px; border-radius: 7px; background: var(--indigo); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;
+}
+.section-desc { font-size: 13px; color: var(--text-2); margin: 0 0 16px; line-height: 1.55; }
+
+/* ---------- app frame (shared) ---------- */
+.frame {
+    border-radius: 16px; border: 1px solid var(--border); background: var(--canvas);
+    overflow: hidden; box-shadow: 0 1px 3px rgba(16,24,40,.06), 0 12px 32px -18px rgba(16,24,40,.18);
+}
+.frame-grid { display: grid; grid-template-columns: 218px 1fr; min-height: 560px; }
+@media (max-width: 900px) { .frame-grid { grid-template-columns: 1fr; } .sb { display: none !important; } }
+
+.sb { background: var(--card); border-right: 1px solid var(--border); padding: 14px 10px 18px; }
+.brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 18px; }
+.brand-mark {
+    width: 30px; height: 30px; border-radius: 9px; background: var(--indigo); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px;
+}
+.brand-name { font-size: 14.5px; font-weight: 700; letter-spacing: -0.01em; }
+.nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 9px;
+    font-size: 13.5px; color: var(--text-2); margin-bottom: 2px;
+}
+.nav-item svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.nav-item.active { background: var(--indigo-soft); color: var(--indigo); font-weight: 600; }
+
+.topbar {
+    display: flex; align-items: center; gap: 14px; padding: 10px 20px;
+    background: var(--card); border-bottom: 1px solid var(--border);
+}
+.ws-pill {
+    display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600;
+    border: 1px solid var(--border); border-radius: 9px; padding: 5px 10px; color: var(--text);
+}
+.ws-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--indigo); }
+.search {
+    flex: 0 1 280px; display: flex; align-items: center; justify-content: space-between;
+    background: var(--canvas); border: 1px solid var(--border); border-radius: 9px;
+    padding: 5px 10px; font-size: 12.5px; color: var(--text-3);
+}
+.search kbd {
+    font-family: var(--font); font-size: 10.5px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 5px; padding: 0 5px; color: var(--text-3);
+}
+.topbar-spacer { flex: 1; }
+.topbar svg { width: 17px; height: 17px; color: var(--text-2); }
+.avatar {
+    width: 30px; height: 30px; border-radius: 50%; background: var(--indigo-soft); color: var(--indigo);
+    display: inline-flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 700;
+}
+
+.page { padding: 22px 26px 30px; }
+.page-title { font-size: 19px; font-weight: 700; margin: 0 0 18px; letter-spacing: -0.01em; }
+
+/* ---------- generic card / pill / chip ---------- */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; }
+.pill {
+    display: inline-flex; align-items: center; gap: 5px; border-radius: 999px;
+    font-size: 11.5px; font-weight: 600; padding: 2.5px 9px; white-space: nowrap;
+}
+.pill.ok { background: var(--ok-soft); color: var(--ok-text); }
+.pill.warn { background: var(--warn-soft); color: var(--warn-text); }
+.pill.danger { background: var(--danger-soft); color: var(--danger-text); }
+.pill.neutral { background: var(--chip-bg); color: var(--text-2); }
+.refchip {
+    display: inline-flex; width: 18px; height: 18px; border-radius: 50%;
+    background: var(--indigo); color: #fff; font-size: 10.5px; font-weight: 700;
+    align-items: center; justify-content: center; margin-left: 7px; flex: 0 0 auto; cursor: help;
+}
+.card-title { display: flex; align-items: center; font-size: 13.5px; font-weight: 700; padding: 14px 16px 0; }
+.card-sub { font-size: 11.5px; color: var(--text-3); font-weight: 500; margin-left: 8px; }
+
+/* ---------- current dashboard ---------- */
+.welcome-card { max-width: 540px; display: flex; align-items: center; gap: 14px; padding: 18px 20px; }
+.welcome-card .avatar { width: 44px; height: 44px; font-size: 16px; }
+.welcome-name { font-size: 15px; font-weight: 700; }
+.welcome-email { font-size: 12.5px; color: var(--text-2); margin-top: 1px; }
+.welcome-link { margin-left: auto; font-size: 12.5px; color: var(--text-2); }
+.welcome-link:hover { color: var(--danger); }
+
+.note-callout {
+    border: 1.5px dashed var(--indigo); border-radius: 12px; padding: 14px 16px 12px;
+    color: var(--text-2); font-size: 13px; line-height: 1.6; margin-top: 26px; position: relative;
+}
+.note-tag {
+    position: absolute; top: -9px; left: 14px; background: var(--indigo); color: #fff;
+    font-size: 9.5px; font-weight: 700; letter-spacing: .08em; padding: 2px 9px; border-radius: 999px;
+}
+
+/* ---------- tables ---------- */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+    text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--text-3); padding: 10px 14px; border-bottom: 1px solid var(--border-soft);
+}
+td { padding: 10px 14px; border-bottom: 1px solid var(--border-soft); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: var(--canvas); }
+.site-name { font-weight: 600; color: var(--indigo); white-space: nowrap; }
+.site-url { font-size: 12px; color: var(--text-3); white-space: nowrap; }
+.cell-muted { color: var(--text-2); font-size: 12.5px; white-space: nowrap; }
+.status-dot { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; }
+.status-dot i { width: 7px; height: 7px; border-radius: 50%; }
+.status-dot.ok i { background: var(--ok); }
+.status-dot.bad i { background: var(--text-3); }
+
+.toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.toolbar .search { flex: 0 1 260px; background: var(--card); }
+.filter-chip {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500;
+    background: var(--card); border: 1px solid var(--border); border-radius: 9px; padding: 5.5px 11px; color: var(--text-2);
+}
+.btn {
+    display: inline-flex; align-items: center; gap: 7px; font-family: var(--font); font-size: 12.5px;
+    font-weight: 600; border-radius: 9px; padding: 7px 13px; cursor: pointer; white-space: nowrap;
+}
+.btn-primary { background: var(--indigo); color: #fff; border: 1px solid var(--indigo); }
+.btn-primary:hover { background: var(--indigo-strong); }
+.btn-ghost { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+.btn-ghost:hover { border-color: var(--indigo); color: var(--indigo); }
+.table-footer { display: flex; justify-content: space-between; align-items: center; padding: 11px 16px; font-size: 12px; color: var(--text-3); }
+
+/* ---------- proposed dashboard ---------- */
+.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+.page-head h2 { font-size: 21px; font-weight: 700; margin: 0 0 3px; letter-spacing: -0.015em; }
+.page-head .sub { font-size: 13px; color: var(--text-2); }
+.page-actions { display: flex; gap: 9px; }
+
+.hero-grid { display: grid; grid-template-columns: 340px 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+@media (max-width: 1100px) { .hero-grid { grid-template-columns: 1fr 1fr; } .hero { grid-column: 1 / -1; } }
+
+.hero { grid-row: span 2; padding-bottom: 16px; }
+.ring-wrap { display: flex; flex-direction: column; align-items: center; padding: 18px 0 8px; }
+.ring { position: relative; width: 150px; height: 150px; }
+.ring svg { transform: rotate(-90deg); }
+.ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring-value { font-size: 36px; font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
+.ring-of { font-size: 11.5px; color: var(--text-3); margin-top: 3px; }
+.ring-caption { font-size: 12px; color: var(--text-2); margin-top: 10px; }
+.delta { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700; margin-top: 7px; }
+.delta.up { color: var(--ok); }
+.delta.down { color: var(--danger); }
+.hero-stats { border-top: 1px solid var(--border-soft); margin: 12px 16px 0; padding-top: 11px; }
+.hero-stat { display: flex; align-items: center; gap: 9px; font-size: 12.5px; padding: 4.5px 0; color: var(--text-2); }
+.hero-stat b { color: var(--text); font-weight: 600; }
+.hero-stat .d { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+
+.kpi { padding: 15px 16px 12px; display: flex; flex-direction: column; }
+.kpi-label { font-size: 12px; font-weight: 600; color: var(--text-2); display: flex; align-items: center; justify-content: space-between; }
+.kpi-value { font-size: 27px; font-weight: 700; margin-top: 7px; letter-spacing: -0.02em; }
+.kpi-value small { font-size: 14px; color: var(--text-3); font-weight: 600; }
+.kpi-sub { font-size: 12px; color: var(--text-3); margin-top: 3px; display: flex; align-items: center; gap: 7px; }
+.kpi-spark { margin-top: 9px; height: 34px; }
+.kpi-spark svg { width: 100%; height: 34px; display: block; }
+
+.main-grid { display: grid; grid-template-columns: 1.55fr 1fr; gap: 14px; margin-bottom: 14px; }
+@media (max-width: 1000px) { .main-grid { grid-template-columns: 1fr; } }
+.stack { display: flex; flex-direction: column; gap: 14px; }
+
+.attention .card-title { padding-bottom: 4px; }
+.count-pill { margin-left: auto; background: var(--danger-soft); color: var(--danger-text); }
+.why { font-size: 11.5px; color: var(--text-3); max-width: 230px; line-height: 1.45; }
+.attention-link { padding: 10px 16px 12px; font-size: 12.5px; font-weight: 600; border-top: 1px solid var(--border-soft); }
+
+.check-list { padding: 10px 16px 14px; }
+.check-row { display: flex; align-items: center; gap: 10px; padding: 3.5px 0; }
+.check-label { font-size: 12px; color: var(--text-2); flex: 0 0 168px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.check-track { flex: 1; height: 6px; border-radius: 999px; background: var(--track); overflow: hidden; }
+.check-fill { height: 100%; border-radius: 999px; }
+.check-count { font-size: 11px; font-weight: 600; color: var(--text-3); width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+
+.feed { padding: 8px 16px 14px; }
+.feed-item { display: flex; gap: 11px; padding: 8px 0; border-bottom: 1px solid var(--border-soft); }
+.feed-item:last-child { border-bottom: none; }
+.feed-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex: 0 0 auto; }
+.feed-body { flex: 1; min-width: 0; }
+.feed-text { font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
+.feed-text b { color: var(--text); font-weight: 600; }
+.feed-time { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+
+.uptime { padding-bottom: 16px; }
+.legend { display: flex; gap: 14px; font-size: 11px; color: var(--text-3); margin-left: auto; align-items: center; }
+.legend i { width: 9px; height: 9px; border-radius: 2.5px; display: inline-block; margin-right: 4px; vertical-align: -1px; }
+.uptime-rows { padding: 6px 16px 0; }
+.uptime-row { display: flex; align-items: center; gap: 14px; padding: 7px 0; border-bottom: 1px solid var(--border-soft); }
+.uptime-row:last-child { border-bottom: none; }
+.uptime-site { flex: 0 0 190px; font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bars { flex: 1; display: flex; gap: 2px; height: 20px; }
+.bars span { flex: 1; border-radius: 2.5px; background: var(--ok); opacity: .82; }
+.bars span.a { background: var(--warn); opacity: 1; }
+.bars span.r { background: var(--danger); opacity: 1; }
+.bars span.n { background: var(--track); opacity: 1; }
+.uptime-pct { flex: 0 0 52px; text-align: right; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.uptime-note { flex: 0 0 132px; font-size: 11px; color: var(--text-3); text-align: right; white-space: nowrap; }
+
+/* ---------- proposed: sites list + site detail ---------- */
+.strip-stats { display: grid; grid-template-columns: repeat(4, 1fr); padding: 14px 0; margin-bottom: 14px; }
+@media (max-width: 900px) { .strip-stats { grid-template-columns: 1fr 1fr; } }
+.stat-mini { padding: 2px 18px; border-right: 1px solid var(--border-soft); }
+.stat-mini:last-child { border-right: none; }
+.stat-mini .kpi-label { justify-content: flex-start; }
+.stat-mini .val { font-size: 21px; font-weight: 700; margin-top: 4px; letter-spacing: -0.01em; }
+.stat-mini .sub { font-size: 11.5px; color: var(--text-3); margin-top: 1px; }
+
+.group-row td { background: var(--canvas); border-bottom: 1px solid var(--border-soft); padding: 7px 14px !important; }
+.group-flex { display: flex; align-items: center; gap: 9px; font-size: 12px; font-weight: 700; color: var(--text-2); }
+.group-flex .cnt { font-weight: 600; color: var(--text-3); }
+.group-flex .gsum { margin-left: auto; font-weight: 500; color: var(--text-3); font-size: 11.5px; }
+.group-flex .chev { color: var(--text-3); font-size: 10px; }
+tr.risk-row td { border-left: 3px solid transparent; }
+tr.risk-row.bad td:first-child { border-left: 3px solid var(--danger); }
+
+.sev { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; font-size: 11.5px; font-weight: 600; color: var(--text-2); }
+.sev i { width: 8px; height: 8px; border-radius: 50%; }
+.sev.c i { background: var(--danger); }
+.sev.h i { background: var(--warn); }
+.sev.m i { background: var(--text-3); }
+.sev.l i { background: var(--track); border: 1px solid var(--border); }
+
+.bars-sm { height: 14px; width: 96px; flex: 0 0 auto; display: flex; gap: 1.5px; }
+.bars-sm span { flex: 1; border-radius: 2px; }
+
+.detail-strip { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; margin-bottom: 4px; }
+.switcher-pill {
+    display: inline-flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 700;
+    background: var(--card); border: 1px solid var(--border); border-radius: 9px; padding: 5px 11px; color: var(--text);
+}
+.detail-actions { margin-left: auto; display: flex; gap: 8px; }
+
+.tabs-row { display: flex; gap: 24px; border-bottom: 1px solid var(--border); margin-bottom: 16px; padding-top: 6px; flex-wrap: wrap; }
+.stab { padding: 8px 1px 11px; font-size: 13px; font-weight: 600; color: var(--text-2); border-bottom: 2px solid transparent; display: flex; align-items: center; gap: 7px; }
+.stab.active { color: var(--indigo); border-color: var(--indigo); }
+.stab .bdg { background: var(--danger-soft); color: var(--danger-text); font-size: 10.5px; font-weight: 700; border-radius: 999px; padding: 1px 7px; }
+
+@keyframes mockspin { to { transform: rotate(360deg); } }
+.proc { display: flex; align-items: center; gap: 13px; padding: 12px 16px; margin-bottom: 14px; border: 1px solid var(--indigo); background: var(--indigo-soft); border-radius: 14px; font-size: 12.5px; color: var(--text-2); }
+.proc .sp { width: 15px; height: 15px; border: 2px solid var(--indigo); border-top-color: transparent; border-radius: 50%; animation: mockspin 1s linear infinite; flex: 0 0 auto; }
+.proc b { color: var(--text); }
+.proc .steps { display: flex; gap: 14px; flex-wrap: wrap; }
+.proc .wait { color: var(--text-3); }
+.proc .elapsed { margin-left: auto; font-weight: 700; color: var(--indigo); font-variant-numeric: tabular-nums; }
+
+.cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 14px; }
+@media (max-width: 1100px) { .cat-grid { grid-template-columns: 1fr; } }
+.cat-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 4px; }
+.cat-head h3 { font-size: 14px; font-weight: 700; margin: 0; display: flex; align-items: center; }
+.cat-link { font-size: 12px; font-weight: 600; }
+.cat-body { padding: 6px 16px 14px; }
+
+.ring-sm { position: relative; width: 108px; height: 108px; }
+.ring-sm .ring-center .ring-value { font-size: 26px; }
+.fail-list { margin-top: 12px; }
+.fail-item { display: flex; gap: 8px; align-items: baseline; font-size: 12px; padding: 4px 0; border-bottom: 1px solid var(--border-soft); color: var(--text-2); }
+.fail-item:last-child { border-bottom: none; }
+.fail-item .x { color: var(--danger); font-weight: 700; flex: 0 0 auto; }
+.fail-item b { color: var(--text); font-weight: 600; }
+.quickwin { margin-top: 12px; border: 1px dashed var(--indigo); border-radius: 10px; padding: 10px 12px; font-size: 12px; color: var(--text-2); }
+.sw-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; padding: 6px 0; color: var(--text-2); }
+.sw { display: inline-block; width: 32px; height: 19px; border-radius: 99px; background: var(--track); position: relative; flex: 0 0 auto; }
+.sw i { position: absolute; top: 2.5px; left: 2.5px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+.sw.on { background: var(--indigo); }
+.sw.on i { left: 15.5px; }
+
+.upd-row { display: flex; align-items: center; gap: 9px; padding: 7.5px 0; border-bottom: 1px solid var(--border-soft); font-size: 12.5px; }
+.upd-row:last-of-type { border-bottom: none; }
+.upd-name { font-weight: 600; }
+.upd-ver { color: var(--text-3); font-size: 11.5px; white-space: nowrap; }
+.upd-ver .to { color: var(--ok-text); font-weight: 600; }
+.btn-xs {
+    font-family: var(--font); font-size: 11px; font-weight: 600; border-radius: 7px; padding: 3px 9px;
+    cursor: pointer; background: var(--card); color: var(--text-2); border: 1px solid var(--border); white-space: nowrap;
+}
+.btn-xs:hover { border-color: var(--indigo); color: var(--indigo); }
+
+.up-state { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+.up-state .d { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); }
+.exp-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-2); padding: 6.5px 0; border-bottom: 1px solid var(--border-soft); }
+.exp-row:last-child { border-bottom: none; }
+.exp-row b { color: var(--text); font-weight: 600; }
+
+/* ---------- references ---------- */
+.refs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(238px, 1fr)); gap: 14px; }
+.refcard { overflow: hidden; }
+.refcard img { width: 100%; height: 142px; object-fit: cover; object-position: top; display: block; border-bottom: 1px solid var(--border); background: var(--canvas); }
+.refbody { padding: 12px 14px 13px; }
+.refname { font-size: 13px; font-weight: 700; display: flex; align-items: center; }
+.refnote { font-size: 12px; color: var(--text-2); margin: 5px 0 8px; line-height: 1.5; }
+.reflink { font-size: 11.5px; font-weight: 600; }
+
+.doc-foot { margin-top: 40px; border-top: 1px solid var(--border); padding-top: 18px; }
+.doc-foot p { font-size: 12px; color: var(--text-3); line-height: 1.65; margin: 0 0 6px; }
+</style>
+</head>
+<body>
+<div class="doc">
+
+    <div class="doc-head">
+        <div>
+            <h1>Plugsent — dashboard proposal</h1>
+            <p>The panel <b>today</b> versus the <b>proposed</b> redesign — the dashboard, the Sites list, and the inside-a-site
+            page — using realistic sample data keyed to Plugsent's real fields (security_score, vuln_count, uptime_status, pending
+            updates…). Static mockup — no application code was touched. Toggle dark mode to check both themes.</p>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()">◐ Toggle dark mode</button>
+    </div>
+
+    <!-- ======================= 1 · TODAY ======================= -->
+    <div class="section-label"><span class="section-num">1</span><h2>Today — the dashboard at /app</h2></div>
+    <p class="section-desc">The panel is Filament v5 with the Plugsent skin. The dashboard page itself ships with a single stock
+    account card — every real number lives one click away, in the Sites table (shown underneath).</p>
+
+    <div class="frame">
+        <div class="frame-grid">
+            <aside class="sb">
+                <div class="brand"><span class="brand-mark">P</span><span class="brand-name">Plugsent</span></div>
+                <div class="nav-item active">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg>
+                    Dashboard
+                </div>
+                <div class="nav-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 012-2h4l2 2.5h6a2 2 0 012 2V17a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+                    Projects
+                </div>
+                <div class="nav-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg>
+                    Sites
+                </div>
+                <div class="nav-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+                    Connect site
+                </div>
+                <div class="nav-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19.5c.9-3.2 3.4-4.8 6.2-4.8s5.3 1.6 6.2 4.8"/><circle cx="16.8" cy="9.2" r="2.5"/><path d="M16.8 14.3c2.1.2 3.8 1.4 4.4 3.6"/></svg>
+                    Team
+                </div>
+                <div class="nav-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h9M16 6h5M3 12h3M10 12h11M3 18h12M19 18h2"/><circle cx="14" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="17.5" cy="18" r="2"/></svg>
+                    Settings
+                </div>
+                <div class="nav-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="9.6" r="3"/><path d="M5.6 19c1.3-2.9 3.6-4.4 6.4-4.4s5.1 1.5 6.4 4.4"/></svg>
+                    My account
+                </div>
+            </aside>
+            <div>
+                <div class="topbar">
+                    <div class="ws-pill"><span class="dot"></span>Acme Workspace <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg></div>
+                    <div class="search">Search… <span><kbd>⌘</kbd> <kbd>K</kbd></span></div>
+                    <div class="topbar-spacer"></div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+                    <span class="avatar">A</span>
+                </div>
+                <div class="page">
+                    <h2 class="page-title">Dashboard</h2>
+                    <div class="card welcome-card">
+                        <span class="avatar">A</span>
+                        <div>
+                            <div class="welcome-name">Ashraf</div>
+                            <div class="welcome-email">ashraf@plugsent.app</div>
+                        </div>
+                        <a class="welcome-link" href="#">Sign out</a>
+                    </div>
+                    <div class="note-callout">
+                        <span class="note-tag">REVIEW NOTE</span>
+                        …and that is the entire dashboard. No fleet security score, no site status, no pending updates,
+                        no vulnerabilities, no uptime — the data exists in Plugsent, it just isn't surfaced here. To check on
+                        your sites you go to <b>Sites</b> (next frame) and read it column by column, site by site.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-label" style="margin-top:30px"><span class="section-num">1b</span><h2>Today — where the numbers actually live (Sites)</h2></div>
+    <p class="section-desc">The Sites table is effectively today's dashboard. It's a good table — but it answers "which site needs me
+    first?" only after you scan 12 rows × 9 columns yourself.</p>
+
+    <div class="frame">
+        <div class="frame-grid">
+            <aside class="sb">
+                <div class="brand"><span class="brand-mark">P</span><span class="brand-name">Plugsent</span></div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg>Dashboard</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 012-2h4l2 2.5h6a2 2 0 012 2V17a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Projects</div>
+                <div class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg>Sites</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Connect site</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19.5c.9-3.2 3.4-4.8 6.2-4.8s5.3 1.6 6.2 4.8"/><circle cx="16.8" cy="9.2" r="2.5"/><path d="M16.8 14.3c2.1.2 3.8 1.4 4.4 3.6"/></svg>Team</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h9M16 6h5M3 12h3M10 12h11M3 18h12M19 18h2"/><circle cx="14" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="17.5" cy="18" r="2"/></svg>Settings</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="9.6" r="3"/><path d="M5.6 19c1.3-2.9 3.6-4.4 6.4-4.4s5.1 1.5 6.4 4.4"/></svg>My account</div>
+            </aside>
+            <div>
+                <div class="topbar">
+                    <div class="ws-pill"><span class="dot"></span>Acme Workspace <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg></div>
+                    <div class="search">Search… <span><kbd>⌘</kbd> <kbd>K</kbd></span></div>
+                    <div class="topbar-spacer"></div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+                    <span class="avatar">A</span>
+                </div>
+                <div class="page">
+                    <div class="page-head">
+                        <h2 class="page-title" style="margin:0">Sites</h2>
+                        <span class="btn btn-primary">＋ Create site</span>
+                    </div>
+                    <div class="card table-wrap">
+                        <div style="padding:12px 14px 0">
+                            <div class="toolbar" style="margin-bottom:10px">
+                                <div class="search" style="flex:1">Search records…</div>
+                                <span class="filter-chip">Status ▾</span>
+                                <span class="filter-chip">Project ▾</span>
+                            </div>
+                        </div>
+                        <table>
+                            <thead><tr>
+                                <th>Name</th><th>Project</th><th>Updates</th><th>Vulnerabilities</th><th>Security score</th><th>Uptime</th><th>Status</th><th>Last seen</th>
+                            </tr></thead>
+                            <tbody>
+                                <tr><td><span class="site-name">acmestore.com</span><div class="site-url">https://acmestore.com</div></td><td class="cell-muted">Clients</td><td><span class="pill warn">3</span></td><td><span class="pill neutral">0</span></td><td><span class="pill ok">92</span></td><td><span class="pill ok">100%</span></td><td><span class="status-dot ok"><i></i>Connected</span></td><td class="cell-muted">24 min ago</td></tr>
+                                <tr><td><span class="site-name">blog.northwind.io</span><div class="site-url">https://blog.northwind.io</div></td><td class="cell-muted">Content</td><td><span class="pill warn">7</span></td><td><span class="pill danger">4 · 1 crit</span></td><td><span class="pill danger">61</span></td><td><span class="pill warn">99.4%</span></td><td><span class="status-dot ok"><i></i>Connected</span></td><td class="cell-muted">31 min ago</td></tr>
+                                <tr><td><span class="site-name">shop.brightlane.co</span><div class="site-url">https://shop.brightlane.co</div></td><td class="cell-muted">Clients</td><td><span class="pill warn">5</span></td><td><span class="pill danger">3 · 1 high</span></td><td><span class="pill warn">74</span></td><td><span class="pill ok">99.9%</span></td><td><span class="status-dot ok"><i></i>Connected</span></td><td class="cell-muted">1 h ago</td></tr>
+                                <tr><td><span class="site-name">portfolio.dana.dev</span><div class="site-url">https://portfolio.dana.dev</div></td><td class="cell-muted">Internal</td><td><span class="pill warn">2</span></td><td><span class="pill danger">1</span></td><td><span class="pill ok">83</span></td><td><span class="pill ok">100%</span></td><td><span class="status-dot ok"><i></i>Connected</span></td><td class="cell-muted">2 h ago</td></tr>
+                                <tr><td><span class="site-name">staging.helix.dev</span><div class="site-url">https://staging.helix.dev</div></td><td class="cell-muted">Internal</td><td><span class="pill warn">9</span></td><td><span class="pill danger">2</span></td><td><span class="pill danger">55</span></td><td><span class="pill neutral">—</span></td><td><span class="status-dot bad"><i></i>Disconnected</span></td><td class="cell-muted">6 days ago</td></tr>
+                                <tr><td><span class="site-name">news.rivervalley.com</span><div class="site-url">https://news.rivervalley.com</div></td><td class="cell-muted">Content</td><td><span class="pill warn">1</span></td><td><span class="pill neutral">0</span></td><td><span class="pill ok">85</span></td><td><span class="pill ok">100%</span></td><td><span class="status-dot ok"><i></i>Connected</span></td><td class="cell-muted">18 min ago</td></tr>
+                                <tr><td><span class="site-name">docs.falkon.tools</span><div class="site-url">https://docs.falkon.tools</div></td><td class="cell-muted">SaaS</td><td><span class="pill neutral">0</span></td><td><span class="pill neutral">0</span></td><td><span class="pill ok">96</span></td><td><span class="pill ok">100%</span></td><td><span class="status-dot ok"><i></i>Connected</span></td><td class="cell-muted">40 min ago</td></tr>
+                                <tr><td><span class="site-name">shop.velvetpetal.com</span><div class="site-url">https://shop.velvetpetal.com</div></td><td class="cell-muted">Clients</td><td><span class="pill warn">3</span></td><td><span class="pill danger">2</span></td><td><span class="pill ok">88</span></td><td><span class="pill ok">99.9%</span></td><td><span class="status-dot ok"><i></i>Connected</span></td><td class="cell-muted">55 min ago</td></tr>
+                            </tbody>
+                        </table>
+                        <div class="table-footer"><span>Showing 1 to 8 of 12 sites</span><span>‹ 1 2 ›</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================= 2 · PROPOSED ======================= -->
+    <div class="section-label"><span class="section-num">2</span><h2>Proposed — same panel, one new page</h2></div>
+    <p class="section-desc">Identical sidebar, topbar and brand — only the dashboard page body changes. Everything below is computable
+    from data Plugsent already stores. Numbered dots <span class="refchip" style="margin-left:4px">2</span> map each block to the
+    reference it borrows from (section 3).</p>
+
+    <div class="frame">
+        <div class="frame-grid">
+            <aside class="sb">
+                <div class="brand"><span class="brand-mark">P</span><span class="brand-name">Plugsent</span></div>
+                <div class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg>Dashboard</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 012-2h4l2 2.5h6a2 2 0 012 2V17a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Projects</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg>Sites</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Connect site</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19.5c.9-3.2 3.4-4.8 6.2-4.8s5.3 1.6 6.2 4.8"/><circle cx="16.8" cy="9.2" r="2.5"/><path d="M16.8 14.3c2.1.2 3.8 1.4 4.4 3.6"/></svg>Team</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h9M16 6h5M3 12h3M10 12h11M3 18h12M19 18h2"/><circle cx="14" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="17.5" cy="18" r="2"/></svg>Settings</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="9.6" r="3"/><path d="M5.6 19c1.3-2.9 3.6-4.4 6.4-4.4s5.1 1.5 6.4 4.4"/></svg>My account</div>
+            </aside>
+            <div>
+                <div class="topbar">
+                    <div class="ws-pill"><span class="dot"></span>Acme Workspace <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg></div>
+                    <div class="search">Search… <span><kbd>⌘</kbd> <kbd>K</kbd></span></div>
+                    <div class="topbar-spacer"></div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+                    <span class="avatar">A</span>
+                </div>
+                <div class="page">
+
+                    <div class="page-head">
+                        <div>
+                            <h2>Good morning, Ashraf</h2>
+                            <div class="sub">12 sites · inventory refreshed 24 min ago · <b style="color:var(--warn-text)">1 site needs reconnection</b></div>
+                        </div>
+                        <div class="page-actions">
+                            <span class="btn btn-ghost">↻ Refresh all</span>
+                            <span class="btn btn-primary">＋ Connect site</span>
+                        </div>
+                    </div>
+
+                    <!-- hero + KPIs -->
+                    <div class="hero-grid">
+                        <div class="card hero">
+                            <div class="card-title">Fleet health <span class="refchip" title="Borrowed from Vanta's posture dashboard">2</span></div>
+                            <div class="ring-wrap">
+                                <div class="ring">
+                                    <svg width="150" height="150" viewBox="0 0 150 150">
+                                        <circle cx="75" cy="75" r="62" fill="none" stroke="var(--track)" stroke-width="11"/>
+                                        <circle cx="75" cy="75" r="62" fill="none" stroke="var(--ok)" stroke-width="11" stroke-linecap="round" stroke-dasharray="311.7 389.6"/>
+                                    </svg>
+                                    <div class="ring-center"><span class="ring-value">80</span><span class="ring-of">/ 100 avg score</span></div>
+                                </div>
+                                <div class="ring-caption">average security score across 12 sites</div>
+                                <span class="delta up">▲ +4 vs last week</span>
+                                <div class="hero-stats">
+                                    <div class="hero-stat"><span class="d" style="background:var(--ok)"></span><span><b>8 of 12</b> sites scoring 80+</span></div>
+                                    <div class="hero-stat"><span class="d" style="background:var(--warn)"></span><span><b>7.2 of 14</b> security checks passing on average</span></div>
+                                    <div class="hero-stat"><span class="d" style="background:var(--danger)"></span><span>Weakest: <b>blog.northwind.io</b> — 61</span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card kpi">
+                            <div class="kpi-label"><span>Sites online</span><span class="pill ok">Live</span></div>
+                            <div class="kpi-value">11 <small>/ 12</small></div>
+                            <div class="kpi-sub"><span class="status-dot bad" style="font-size:11.5px"><i></i></span> staging.helix.dev · 6 days</div>
+                            <div class="kpi-spark"><svg viewBox="0 0 100 32" preserveAspectRatio="none"><polyline points="0,8 9.1,24 18.2,24 27.3,8 36.4,8 45.5,8 54.5,24 63.6,24 72.7,24 81.8,8 90.9,24 100,24" fill="none" stroke="var(--ok)" stroke-width="2"/></svg></div>
+                        </div>
+                        <div class="card kpi">
+                            <div class="kpi-label"><span>Pending updates <span class="refchip" title="Borrowed from Google Analytics KPI cards">3</span></span><span class="delta up" style="margin:0">▼ 12</span></div>
+                            <div class="kpi-value">44</div>
+                            <div class="kpi-sub">across 11 sites · 1 WordPress core</div>
+                            <div class="kpi-spark"><svg viewBox="0 0 100 32" preserveAspectRatio="none"><polyline points="0,4 9.1,10.2 18.2,14.9 27.3,24.2 36.4,19.6 45.5,25.8 54.5,32 63.6,27.3 72.7,32 81.8,22.7 90.9,28.9 100,32" fill="none" stroke="var(--indigo)" stroke-width="2"/></svg></div>
+                        </div>
+                        <div class="card kpi">
+                            <div class="kpi-label"><span>Open vulnerabilities <span class="refchip" title="Borrowed from Amplitude trend sparklines">4</span></span><span class="delta down" style="margin:0">▲ +3</span></div>
+                            <div class="kpi-value" style="color:var(--danger)">16</div>
+                            <div class="kpi-sub"><b style="color:var(--danger-text)">1 critical</b> · 2 high · 13 medium/low</div>
+                            <div class="kpi-spark"><svg viewBox="0 0 100 32" preserveAspectRatio="none"><polyline points="0,32 9.1,28 18.2,24 27.3,28 36.4,20 45.5,16 54.5,20 63.6,12 72.7,16 81.8,8 90.9,12 100,4" fill="none" stroke="var(--danger)" stroke-width="2"/></svg></div>
+                        </div>
+                        <div class="card kpi">
+                            <div class="kpi-label"><span>Uptime · 30 days</span></div>
+                            <div class="kpi-value">99.77<small>%</small></div>
+                            <div class="kpi-sub">1 incident · 4 min · recovered 9 h ago</div>
+                            <div class="kpi-spark"><svg viewBox="0 0 100 32" preserveAspectRatio="none"><polyline points="0,10 9.1,12 18.2,9 27.3,11 36.4,8 45.5,10 54.5,8 63.6,11 72.7,9 81.8,8 90.9,10 100,9" fill="none" stroke="var(--ok)" stroke-width="2"/></svg></div>
+                        </div>
+                    </div>
+
+                    <!-- attention + checks/activity -->
+                    <div class="main-grid">
+                        <div class="card attention">
+                            <div class="card-title">Needs attention <span class="refchip" title="Borrowed from Cloudflare's account overview">1</span><span class="pill danger count-pill">6 sites</span></div>
+                            <div class="table-wrap">
+                            <table>
+                                <thead><tr><th>Site</th><th>Score</th><th>Updates</th><th>Vulns</th><th>Uptime</th><th>Why it's here</th></tr></thead>
+                                <tbody>
+                                    <tr><td><span class="site-name">staging.helix.dev</span><div class="site-url">Internal · connector 0.13.0</div></td><td><span class="pill danger">55</span></td><td><span class="pill warn">9</span></td><td><span class="pill danger">2</span></td><td><span class="pill neutral">—</span></td><td class="why">Disconnected — last seen 6 days ago</td></tr>
+                                    <tr><td><span class="site-name">blog.northwind.io</span><div class="site-url">Content · WP 6.7.2</div></td><td><span class="pill danger">61</span></td><td><span class="pill warn">7</span></td><td><span class="pill danger">4 · 1 crit</span></td><td><span class="pill warn">99.4%</span></td><td class="why">WooCommerce critical · PHP 8.1 unsupported · core behind</td></tr>
+                                    <tr><td><span class="site-name">archive.oldprojects.dev</span><div class="site-url">Internal · PHP 8.1</div></td><td><span class="pill warn">69</span></td><td><span class="pill warn">6</span></td><td><span class="pill danger">3 · 1 high</span></td><td><span class="pill warn">98.5%</span></td><td class="why">PHP 8.1 no longer receives security fixes</td></tr>
+                                    <tr><td><span class="site-name">shop.brightlane.co</span><div class="site-url">Clients · PHP 8.2</div></td><td><span class="pill warn">74</span></td><td><span class="pill warn">5</span></td><td><span class="pill danger">3 · 1 high</span></td><td><span class="pill ok">99.9%</span></td><td class="why">3 known vulnerabilities · 5 updates pending</td></tr>
+                                    <tr><td><span class="site-name">portfolio.dana.dev</span><div class="site-url">Internal · PHP 8.3</div></td><td><span class="pill ok">83</span></td><td><span class="pill warn">2</span></td><td><span class="pill danger">1</span></td><td><span class="pill ok">100%</span></td><td class="why">Gravity Forms vulnerability (medium)</td></tr>
+                                    <tr><td><span class="site-name">shop.velvetpetal.com</span><div class="site-url">Clients · PHP 8.3</div></td><td><span class="pill ok">88</span></td><td><span class="pill warn">3</span></td><td><span class="pill danger">2</span></td><td><span class="pill ok">99.9%</span></td><td class="why">SSL certificate expires in 12 days</td></tr>
+                                </tbody>
+                            </table>
+                            </div>
+                            <div class="attention-link"><a href="#">Open Sites, sorted by risk →</a></div>
+                        </div>
+
+                        <div class="stack">
+                            <div class="card">
+                                <div class="card-title">Security checks · fleet <span class="refchip" title="Borrowed from Vanta + 1Password check summaries">2</span><span class="refchip" title="Borrowed from Vanta + 1Password check summaries">8</span><span class="card-sub">the real 14 checks from EvaluateSiteSecurity</span></div>
+                                <div class="check-list">
+                                    <div class="check-row"><span class="check-label">HTTPS enabled</span><div class="check-track"><div class="check-fill" style="width:100%;background:var(--ok)"></div></div><span class="check-count">12/12</span></div>
+                                    <div class="check-row"><span class="check-label">WP_DEBUG disabled</span><div class="check-track"><div class="check-fill" style="width:92%;background:var(--ok)"></div></div><span class="check-count">11/12</span></div>
+                                    <div class="check-row"><span class="check-label">WordPress core up to date</span><div class="check-track"><div class="check-fill" style="width:92%;background:var(--ok)"></div></div><span class="check-count">11/12</span></div>
+                                    <div class="check-row"><span class="check-label">PHP receives security fixes</span><div class="check-track"><div class="check-fill" style="width:75%;background:var(--warn)"></div></div><span class="check-count">9/12</span></div>
+                                    <div class="check-row"><span class="check-label">Search visibility configured</span><div class="check-track"><div class="check-fill" style="width:100%;background:var(--ok)"></div></div><span class="check-count">12/12</span></div>
+                                    <div class="check-row"><span class="check-label">No known vulnerable software</span><div class="check-track"><div class="check-fill" style="width:50%;background:var(--warn)"></div></div><span class="check-count">6/12</span></div>
+                                    <div class="check-row"><span class="check-label">No inactive themes</span><div class="check-track"><div class="check-fill" style="width:58%;background:var(--warn)"></div></div><span class="check-count">7/12</span></div>
+                                    <div class="check-row"><span class="check-label">No inactive plugins</span><div class="check-track"><div class="check-fill" style="width:50%;background:var(--warn)"></div></div><span class="check-count">6/12</span></div>
+                                    <div class="check-row"><span class="check-label">Security headers enabled</span><div class="check-track"><div class="check-fill" style="width:50%;background:var(--warn)"></div></div><span class="check-count">6/12</span></div>
+                                    <div class="check-row"><span class="check-label">File editor disabled</span><div class="check-track"><div class="check-fill" style="width:42%;background:var(--danger)"></div></div><span class="check-count">5/12</span></div>
+                                    <div class="check-row"><span class="check-label">WordPress version hidden</span><div class="check-track"><div class="check-fill" style="width:42%;background:var(--danger)"></div></div><span class="check-count">5/12</span></div>
+                                    <div class="check-row"><span class="check-label">XML-RPC disabled</span><div class="check-track"><div class="check-fill" style="width:33%;background:var(--danger)"></div></div><span class="check-count">4/12</span></div>
+                                    <div class="check-row"><span class="check-label">Login errors masked</span><div class="check-track"><div class="check-fill" style="width:33%;background:var(--danger)"></div></div><span class="check-count">4/12</span></div>
+                                    <div class="check-row"><span class="check-label">User enumeration blocked</span><div class="check-track"><div class="check-fill" style="width:25%;background:var(--danger)"></div></div><span class="check-count">3/12</span></div>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-title">Recent activity <span class="refchip" title="Borrowed from incident.io's timeline">7</span></div>
+                                <div class="feed">
+                                    <div class="feed-item"><span class="feed-dot" style="background:var(--danger)"></span><div class="feed-body"><div class="feed-text"><b>Vulnerability flagged</b> — critical: WooCommerce &lt; 9.4.2 on blog.northwind.io</div><div class="feed-time">2 h ago</div></div></div>
+                                    <div class="feed-item"><span class="feed-dot" style="background:var(--ok)"></span><div class="feed-body"><div class="feed-text"><b>Update run completed</b> — 3 plugins updated on acmestore.com</div><div class="feed-time">5 h ago</div></div></div>
+                                    <div class="feed-item"><span class="feed-dot" style="background:var(--warn)"></span><div class="feed-body"><div class="feed-text"><b>Site recovered</b> — news.rivervalley.com back online after 4 min</div><div class="feed-time">9 h ago</div></div></div>
+                                    <div class="feed-item"><span class="feed-dot" style="background:var(--indigo)"></span><div class="feed-body"><div class="feed-text"><b>Hardening applied</b> — security headers enabled on 4 sites</div><div class="feed-time">Yesterday</div></div></div>
+                                    <div class="feed-item"><span class="feed-dot" style="background:var(--indigo)"></span><div class="feed-body"><div class="feed-text"><b>API key regenerated</b> — shop.brightlane.co</div><div class="feed-time">2 days ago</div></div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- uptime -->
+                    <div class="card uptime">
+                        <div class="card-title">Uptime · last 30 days
+                            <span class="refchip" title="Borrowed from Better Stack's uptime bars">5</span>
+                            <span class="legend"><span><i style="background:var(--ok)"></i>Operational</span><span><i style="background:var(--warn)"></i>Degraded</span><span><i style="background:var(--track)"></i>No data</span></span>
+                        </div>
+                        <div class="uptime-rows">
+                            <div class="uptime-row"><span class="uptime-site">acmestore.com</span><div class="bars" data-pattern="g"></div><span class="uptime-pct" style="color:var(--ok)">100%</span><span class="uptime-note">no incidents</span></div>
+                            <div class="uptime-row"><span class="uptime-site">news.rivervalley.com</span><div class="bars" data-pattern="g-ga-g"></div><span class="uptime-pct" style="color:var(--ok)">99.9%</span><span class="uptime-note">1 incident · 4 min</span></div>
+                            <div class="uptime-row"><span class="uptime-site">shop.velvetpetal.com</span><div class="bars" data-pattern="g-a--g-a-g"></div><span class="uptime-pct" style="color:var(--ok)">99.9%</span><span class="uptime-note">2 degraded checks</span></div>
+                            <div class="uptime-row"><span class="uptime-site">shop.brightlane.co</span><div class="bars" data-pattern="g----a-g"></div><span class="uptime-pct" style="color:var(--ok)">99.9%</span><span class="uptime-note">1 degraded check</span></div>
+                            <div class="uptime-row"><span class="uptime-site">blog.northwind.io</span><div class="bars" data-pattern="g-a-g--a-g"></div><span class="uptime-pct" style="color:var(--warn-text)">99.4%</span><span class="uptime-note">2 incidents · 41 min</span></div>
+                            <div class="uptime-row"><span class="uptime-site">docs.falkon.tools</span><div class="bars" data-pattern="g"></div><span class="uptime-pct" style="color:var(--ok)">100%</span><span class="uptime-note">no incidents</span></div>
+                            <div class="uptime-row"><span class="uptime-site">staging.helix.dev</span><div class="bars" data-pattern="g24n"></div><span class="uptime-pct" style="color:var(--text-3)">—</span><span class="uptime-note">no data · disconnected</span></div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================= 2b · PROPOSED SITES LIST ======================= -->
+    <div class="section-label"><span class="section-num">2b</span><h2>Proposed — the Sites list, promoted</h2></div>
+    <p class="section-desc">Same table, same filters — but the fleet context sits on top, sites group by project, sort by risk,
+    and severity + 30-day history ride inline so you can triage without opening anything. Nothing you do today is removed.</p>
+
+    <div class="frame">
+        <div class="frame-grid">
+            <aside class="sb">
+                <div class="brand"><span class="brand-mark">P</span><span class="brand-name">Plugsent</span></div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg>Dashboard</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 012-2h4l2 2.5h6a2 2 0 012 2V17a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Projects</div>
+                <div class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg>Sites</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Connect site</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19.5c.9-3.2 3.4-4.8 6.2-4.8s5.3 1.6 6.2 4.8"/><circle cx="16.8" cy="9.2" r="2.5"/><path d="M16.8 14.3c2.1.2 3.8 1.4 4.4 3.6"/></svg>Team</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h9M16 6h5M3 12h3M10 12h11M3 18h12M19 18h2"/><circle cx="14" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="17.5" cy="18" r="2"/></svg>Settings</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="9.6" r="3"/><path d="M5.6 19c1.3-2.9 3.6-4.4 6.4-4.4s5.1 1.5 6.4 4.4"/></svg>My account</div>
+            </aside>
+            <div>
+                <div class="topbar">
+                    <div class="ws-pill"><span class="dot"></span>Acme Workspace <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg></div>
+                    <div class="search">Search… <span><kbd>⌘</kbd> <kbd>K</kbd></span></div>
+                    <div class="topbar-spacer"></div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+                    <span class="avatar">A</span>
+                </div>
+                <div class="page">
+                    <div class="page-head">
+                        <div>
+                            <h2 style="font-size:21px;font-weight:700;margin:0 0 3px;letter-spacing:-0.015em">Sites</h2>
+                            <div class="sub">12 sites · 4 projects · grouped by project, worst score first <span class="refchip" title="Borrowed from Tailscale's quiet table chrome">6</span></div>
+                        </div>
+                        <div class="page-actions">
+                            <span class="btn btn-ghost">↻ Refresh all</span>
+                            <span class="btn btn-primary">＋ Create site</span>
+                        </div>
+                    </div>
+
+                    <div class="card strip-stats">
+                        <div class="stat-mini"><div class="kpi-label">Sites <span class="refchip" title="Borrowed from Google Analytics KPI cards">3</span></div><div class="val">12</div><div class="sub">11 connected · 1 disconnected</div></div>
+                        <div class="stat-mini"><div class="kpi-label">Avg security score</div><div class="val" style="color:var(--ok)">80</div><div class="sub">▲ +4 this week</div></div>
+                        <div class="stat-mini"><div class="kpi-label">Updates pending</div><div class="val">44</div><div class="sub">across 11 sites · 1 core</div></div>
+                        <div class="stat-mini"><div class="kpi-label">Open vulnerabilities</div><div class="val" style="color:var(--danger)">16</div><div class="sub">1 critical · 2 high</div></div>
+                    </div>
+
+                    <div class="card table-wrap">
+                        <div style="padding:12px 14px 0">
+                            <div class="toolbar" style="margin-bottom:10px">
+                                <div class="search" style="flex:1">Search sites…</div>
+                                <span class="filter-chip">Status ▾</span>
+                                <span class="filter-chip">Project ▾</span>
+                                <span class="filter-chip" style="color:var(--indigo);border-color:var(--indigo)">Sort: Risk ▾</span>
+                                <span class="filter-chip" style="color:var(--indigo);border-color:var(--indigo)">Group by project ✓</span>
+                            </div>
+                        </div>
+                        <table>
+                            <thead><tr><th>Site</th><th>Score</th><th>Updates</th><th>Vulnerabilities</th><th>Uptime · 30d <span class="refchip" title="Borrowed from Better Stack's uptime bars">5</span></th><th>Status</th><th>Last seen</th><th></th></tr></thead>
+                            <tbody>
+                                <tr class="group-row"><td colspan="8"><div class="group-flex"><span class="chev">▾</span>Clients<span class="cnt">4 sites</span><span class="gsum">15 updates · 5 vulnerabilities</span></div></td></tr>
+                                <tr><td><span class="site-name">shop.brightlane.co</span><div class="site-url">https://shop.brightlane.co</div></td><td><span class="pill warn">74</span></td><td class="cell-muted">5 plugins</td><td><span class="sev h"><i></i>1</span><span class="sev m"><i></i>2</span></td><td><div class="bars-sm bars" data-pattern="g----a-g"></div></td><td><span class="status-dot ok"><i></i>Connected</span></td><td class="cell-muted">1 h ago</td><td class="cell-muted">⋯</td></tr>
+                                <tr><td><span class="site-name">gallery.marinarestudio.com</span><div class="site-url">https://gallery.marinarestudio.com</div></td><td><span class="pill ok">82</span></td><td class="cell-muted">4 plugins</td><td><span class="pill neutral">—</span></td><td><div class="bars-sm bars" data-pattern="g"></div></td><td><span class="status-dot ok"><i></i>Connected</span></td><td class="cell-muted">3 h ago</td><td class="cell-muted">⋯</td></tr>
+                                <tr><td><span class="site-name">shop.velvetpetal.com</span><div class="site-url">https://shop.velvetpetal.com</div></td><td><span class="pill ok">88</span></td><td class="cell-muted">3 plugins</td><td><span class="sev m"><i></i>1</span><span class="sev l"><i></i>1</span></td><td><div class="bars-sm bars" data-pattern="g-a--g-a-g"></div></td><td><span class="status-dot ok"><i></i>Connected</span></td><td class="cell-muted">55 min ago</td><td class="cell-muted">⋯</td></tr>
+                                <tr><td><span class="site-name">acmestore.com</span><div class="site-url">https://acmestore.com</div></td><td><span class="pill ok">92</span></td><td class="cell-muted">3 plugins</td><td><span class="pill neutral">—</span></td><td><div class="bars-sm bars" data-pattern="g"></div></td><td><span class="status-dot ok"><i></i>Connected</span></td><td class="cell-muted">24 min ago</td><td class="cell-muted">⋯</td></tr>
+                                <tr class="group-row"><td colspan="8"><div class="group-flex"><span class="chev">▾</span>Internal<span class="cnt">3 sites</span><span class="gsum">17 updates · 6 vulnerabilities · 1 disconnected</span></div></td></tr>
+                                <tr class="risk-row bad"><td><span class="site-name">staging.helix.dev</span><div class="site-url">https://staging.helix.dev</div></td><td><span class="pill danger">55</span></td><td class="cell-muted">9 plugins</td><td><span class="sev m"><i></i>2</span></td><td><div class="bars-sm bars" data-pattern="g24n"></div></td><td><span class="status-dot bad"><i></i>Disconnected</span></td><td class="cell-muted">6 days ago</td><td class="cell-muted">⋯</td></tr>
+                                <tr><td><span class="site-name">archive.oldprojects.dev</span><div class="site-url">https://archive.oldprojects.dev</div></td><td><span class="pill warn">69</span></td><td class="cell-muted">6 plugins</td><td><span class="sev h"><i></i>1</span><span class="sev m"><i></i>2</span></td><td><div class="bars-sm bars" data-pattern="g--a-g"></div></td><td><span class="status-dot ok"><i></i>Connected</span></td><td class="cell-muted">4 h ago</td><td class="cell-muted">⋯</td></tr>
+                                <tr><td><span class="site-name">portfolio.dana.dev</span><div class="site-url">https://portfolio.dana.dev</div></td><td><span class="pill ok">83</span></td><td class="cell-muted">2 plugins</td><td><span class="sev m"><i></i>1</span></td><td><div class="bars-sm bars" data-pattern="g"></div></td><td><span class="status-dot ok"><i></i>Connected</span></td><td class="cell-muted">2 h ago</td><td class="cell-muted">⋯</td></tr>
+                                <tr class="group-row"><td colspan="8"><div class="group-flex"><span class="chev">▸</span>Content<span class="cnt">3 sites</span><span class="gsum">11 updates · 4 vulnerabilities · incl. blog.northwind.io (61)</span></div></td></tr>
+                                <tr class="group-row"><td colspan="8"><div class="group-flex"><span class="chev">▸</span>SaaS<span class="cnt">2 sites</span><span class="gsum">2 updates · 1 low-severity vulnerability</span></div></td></tr>
+                            </tbody>
+                        </table>
+                        <div class="table-footer"><span>Showing 7 of 12 sites · 2 groups collapsed</span><span>Sort: Risk ▾</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================= 2c · PROPOSED SITE DETAIL ======================= -->
+    <div class="section-label"><span class="section-num">2c</span><h2>Proposed — inside a site (Overview tab)</h2></div>
+    <p class="section-desc">blog.northwind.io, your problem child. Same site strip, same seven tabs (Security keeps its failing-check
+    badge), same live process panel — the Overview tab's three category cards get upgraded: a score ring with the failing checks and
+    hardening quick wins, updates with versions and one-click actions, and uptime with the expiry facts you already track.</p>
+
+    <div class="frame">
+        <div class="frame-grid">
+            <aside class="sb">
+                <div class="brand"><span class="brand-mark">P</span><span class="brand-name">Plugsent</span></div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg>Dashboard</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 012-2h4l2 2.5h6a2 2 0 012 2V17a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Projects</div>
+                <div class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg>Sites</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Connect site</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19.5c.9-3.2 3.4-4.8 6.2-4.8s5.3 1.6 6.2 4.8"/><circle cx="16.8" cy="9.2" r="2.5"/><path d="M16.8 14.3c2.1.2 3.8 1.4 4.4 3.6"/></svg>Team</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h9M16 6h5M3 12h3M10 12h11M3 18h12M19 18h2"/><circle cx="14" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="17.5" cy="18" r="2"/></svg>Settings</div>
+                <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="9.6" r="3"/><path d="M5.6 19c1.3-2.9 3.6-4.4 6.4-4.4s5.1 1.5 6.4 4.4"/></svg>My account</div>
+            </aside>
+            <div>
+                <div class="topbar">
+                    <div class="ws-pill"><span class="dot"></span>Acme Workspace <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg></div>
+                    <div class="search">Search… <span><kbd>⌘</kbd> <kbd>K</kbd></span></div>
+                    <div class="topbar-spacer"></div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+                    <span class="avatar">A</span>
+                </div>
+                <div class="page">
+
+                    <div class="detail-strip">
+                        <span class="pill ok">connected</span>
+                        <span class="switcher-pill">blog.northwind.io <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg></span>
+                        <a href="#" class="cell-muted" style="font-size:12.5px">https://blog.northwind.io ↗</a>
+                        <span class="cell-muted" style="font-size:12.5px">WP 6.7.2 · PHP 8.1 · Connector 0.13.0</span>
+                        <span class="cell-muted" style="font-size:12.5px">Last seen 31 min ago</span>
+                        <div class="detail-actions">
+                            <span class="btn btn-ghost" style="font-size:12px">API key</span>
+                            <span class="btn btn-ghost" style="font-size:12px">Open wp-admin ↗</span>
+                            <span class="btn btn-primary" style="font-size:12px">↻ Refresh inventory</span>
+                        </div>
+                    </div>
+                    <span class="refchip" style="margin:0 0 12px" title="Borrowed from Railway's resource header + tabs">9</span>
+
+                    <div class="tabs-row">
+                        <span class="stab active">Overview</span>
+                        <span class="stab">Plugins <span class="bdg" style="background:var(--chip-bg);color:var(--text-2)">6</span></span>
+                        <span class="stab">Themes</span>
+                        <span class="stab">Core <span class="bdg" style="background:var(--warn-soft);color:var(--warn-text)">1</span></span>
+                        <span class="stab">Uptime</span>
+                        <span class="stab">Security <span class="bdg">6</span></span>
+                        <span class="stab">History</span>
+                    </div>
+
+                    <div class="proc">
+                        <span class="sp"></span>
+                        <b>Process in progress</b>
+                        <div class="steps"><span>⟳ Updating WooCommerce 9.3.1 → 9.4.2</span><span class="wait">○ Waiting for the site · Re-check inventory</span></div>
+                        <span class="elapsed">12s</span>
+                    </div>
+
+                    <div class="cat-grid">
+                        <div class="card">
+                            <div class="cat-head"><h3>Security <span class="refchip" title="Borrowed from Vanta's posture dashboard">2</span></h3><a class="cat-link" href="#">Open Security →</a></div>
+                            <div class="cat-body">
+                                <div style="display:flex;align-items:center;gap:16px">
+                                    <div class="ring-sm">
+                                        <svg width="108" height="108" viewBox="0 0 108 108">
+                                            <circle cx="54" cy="54" r="44" fill="none" stroke="var(--track)" stroke-width="9"/>
+                                            <circle cx="54" cy="54" r="44" fill="none" stroke="var(--warn)" stroke-width="9" stroke-linecap="round" stroke-dasharray="168.7 276.5"/>
+                                        </svg>
+                                        <div class="ring-center"><span class="ring-value">61</span><span class="ring-of" style="font-size:10px">/ 100</span></div>
+                                    </div>
+                                    <div style="font-size:12px;color:var(--text-2);line-height:1.6"><b style="color:var(--text)">8 of 14 checks passing</b><br>scanned 31 min ago<br>score 61 · fair</div>
+                                </div>
+                                <div class="fail-list">
+                                    <div class="fail-item"><span class="x">✕</span><span><b>PHP version receives security fixes</b> — running PHP 8.1</span></div>
+                                    <div class="fail-item"><span class="x">✕</span><span><b>No known vulnerable software</b> — 4 items affected</span></div>
+                                    <div class="fail-item"><span class="x">✕</span><span><b>WordPress core up to date</b> — 6.7.2 → 6.8.1</span></div>
+                                    <div class="fail-item"><span class="x">✕</span><span><b>No inactive plugins</b> — 3 deactivated</span></div>
+                                </div>
+                                <div class="quickwin">
+                                    <b style="color:var(--text)">Quick wins:</b> 4 hardening toggles would pass 4 more checks (+29 pts).
+                                    <div class="sw-row"><span>Add security headers</span><span class="sw"><i></i></span></div>
+                                    <div class="sw-row"><span>Disable XML-RPC</span><span class="sw"><i></i></span></div>
+                                    <div class="sw-row" style="color:var(--indigo);font-weight:600">+ 2 more in Security →</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="cat-head"><h3>Updates <span class="refchip" title="Borrowed from Vercel's project overview cards">10</span></h3><a class="cat-link" href="#">Manage →</a></div>
+                            <div class="cat-body">
+                                <div class="upd-row"><span class="upd-name">WordPress core</span><span class="upd-ver">6.7.2 → <span class="to">6.8.1</span></span><span class="btn-xs" style="margin-left:auto">Update</span></div>
+                                <div class="upd-row"><span class="upd-name">WooCommerce</span><span class="pill danger" style="font-size:10.5px;padding:1px 7px">1 critical</span><span class="upd-ver">9.3.1 → <span class="to">9.4.2</span></span><span class="btn-xs" style="margin-left:auto">Update</span></div>
+                                <div class="upd-row"><span class="upd-name">Gravity Forms</span><span class="upd-ver">2.8.3 → <span class="to">2.8.5</span></span><span class="btn-xs" style="margin-left:auto">Update</span></div>
+                                <div class="upd-row"><span class="upd-name">Elementor</span><span class="upd-ver">3.25.4 → <span class="to">3.26.0</span></span><span class="btn-xs" style="margin-left:auto">Update</span></div>
+                                <div class="upd-row"><span class="upd-name">Yoast SEO</span><span class="upd-ver">23.7 → <span class="to">23.9</span></span><span class="btn-xs" style="margin-left:auto">Update</span></div>
+                                <div class="upd-row" style="color:var(--text-3)">Themes — up to date</div>
+                                <div style="display:flex;align-items:center;gap:10px;margin-top:12px">
+                                    <span class="btn btn-primary" style="font-size:12px">Update all (7)</span>
+                                    <span style="font-size:11px;color:var(--text-3)">rollbacks available for 30 days</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="cat-head"><h3>Uptime <span class="refchip" title="Borrowed from Better Stack's uptime bars">5</span></h3><a class="cat-link" href="#">Uptime details →</a></div>
+                            <div class="cat-body">
+                                <div class="up-state"><span class="d"></span>Up · checked 2 min ago · every 5 min</div>
+                                <div style="margin:12px 0 4px"><div class="bars" data-pattern="g-a-g--a-g"></div></div>
+                                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
+                                    <span style="font-size:22px;font-weight:700;color:var(--warn-text)">99.42%</span>
+                                    <span style="font-size:11.5px;color:var(--text-3)">uptime over 30 days</span>
+                                </div>
+                                <div class="exp-row"><span>Incidents · 30 days</span><b>2 · 41 min total <a href="#" style="margin-left:4px">→</a></b></div>
+                                <div class="exp-row"><span>SSL certificate expires</span><b>Mar 30, 2027 <span style="color:var(--text-3);font-weight:400">(in 6 months)</span></b></div>
+                                <div class="exp-row"><span>Domain expires</span><b>Jan 14, 2027</b></div>
+                                <div class="exp-row"><span>Last check</span><b>2 min ago · 200 OK · 480 ms</b></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card table-wrap">
+                        <div class="card-title">Recent activity <span class="card-sub">from site history (SiteCommand)</span></div>
+                        <table>
+                            <thead><tr><th>Command</th><th>Subject</th><th>Status</th><th>When</th></tr></thead>
+                            <tbody>
+                                <tr><td class="cell-muted">Plugin update</td><td><b style="font-weight:600">WooCommerce 9.3.1 → 9.4.2</b></td><td><span class="pill neutral" style="background:var(--indigo-soft);color:var(--indigo)">⟳ Running</span></td><td class="cell-muted">now</td></tr>
+                                <tr><td class="cell-muted">Inventory refresh</td><td>42 plugins · 1 theme · core 6.7.2</td><td><span class="pill ok">Completed</span></td><td class="cell-muted">31 min ago</td></tr>
+                                <tr><td class="cell-muted">Security scan</td><td>14 checks · 6 failing · score 61</td><td><span class="pill ok">Completed</span></td><td class="cell-muted">31 min ago</td></tr>
+                                <tr><td class="cell-muted">Plugin updates</td><td>2 plugins (Yoast SEO, Elementor)</td><td><span class="pill ok">Completed</span></td><td class="cell-muted">yesterday</td></tr>
+                                <tr><td class="cell-muted">Rollback</td><td>Elementor 3.26.0 → 3.25.4</td><td><span class="pill ok">Completed</span></td><td class="cell-muted">2 days ago</td></tr>
+                                <tr><td class="cell-muted">Hardening applied</td><td>Hide WordPress version</td><td><span class="pill ok">Completed</span></td><td class="cell-muted">4 days ago</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================= 3 · REFERENCES ======================= -->
+    <div class="section-label"><span class="section-num">3</span><h2>Where each pattern comes from</h2></div>
+    <p class="section-desc">Real screens from shipped products (via Mobbin), matched to the blocks above. The goal isn't to copy any
+    one product — it's to borrow proven answers for "how should a fleet/security dashboard communicate?"</p>
+
+    <div class="refs-grid">
+        <div class="card refcard">
+            <img src="refs/cloudflare.webp" alt="Cloudflare dashboard">
+            <div class="refbody">
+                <div class="refname">Cloudflare <span class="refchip">1</span></div>
+                <div class="refnote">Account overview: status-first hierarchy and a short "things that need you" list. The model for the Needs-attention table.</div>
+                <a class="reflink" href="https://mobbin.com/screens/ebf46b6f-7140-45a1-ae2a-60bb150e947e" target="_blank">View on Mobbin →</a>
+            </div>
+        </div>
+        <div class="card refcard">
+            <img src="refs/vanta-score.webp" alt="Vanta security score dashboard">
+            <div class="refbody">
+                <div class="refname">Vanta <span class="refchip">2</span></div>
+                <div class="refnote">The security-posture gold standard: one big score gauge, then checks broken down by pass rate. Maps 1:1 to Plugsent's score + 14 checks.</div>
+                <a class="reflink" href="https://mobbin.com/screens/53c7a7ad-0390-4084-bd6f-54d96bb4e101" target="_blank">View on Mobbin →</a>
+            </div>
+        </div>
+        <div class="card refcard">
+            <img src="refs/google-analytics.webp" alt="Google Analytics dashboard">
+            <div class="refbody">
+                <div class="refname">Google Analytics <span class="refchip">3</span></div>
+                <div class="refnote">The classic KPI row — big number, one-line context, comparison delta. Nothing communicates fleet status faster at a glance.</div>
+                <a class="reflink" href="https://mobbin.com/screens/f4f2cebe-5496-4959-9fbb-fe37fe2a5dd6" target="_blank">View on Mobbin →</a>
+            </div>
+        </div>
+        <div class="card refcard">
+            <img src="refs/amplitude.webp" alt="Amplitude dashboard">
+            <div class="refbody">
+                <div class="refname">Amplitude <span class="refchip">4</span></div>
+                <div class="refnote">Compact trend sparklines inside stat cards — "is this number getting better or worse?" without a full chart.</div>
+                <a class="reflink" href="https://mobbin.com/screens/4bbf458a-54be-4821-9742-42c21ee9d975" target="_blank">View on Mobbin →</a>
+            </div>
+        </div>
+        <div class="card refcard">
+            <img src="refs/better-stack.webp" alt="Better Stack uptime monitoring">
+            <div class="refbody">
+                <div class="refname">Better Stack <span class="refchip">5</span></div>
+                <div class="refnote">Per-monitor 30-day bar strips with a colour legend — the same pattern as Plugsent's existing site uptime strip, promoted to fleet level.</div>
+                <a class="reflink" href="https://mobbin.com/screens/0d34fbf2-e4c4-451c-ad5d-de3cdf409164" target="_blank">View on Mobbin →</a>
+            </div>
+        </div>
+        <div class="card refcard">
+            <img src="refs/tailscale.webp" alt="Tailscale admin panel">
+            <div class="refbody">
+                <div class="refname">Tailscale <span class="refchip">6</span></div>
+                <div class="refnote">Restrained infra admin: quiet table, clear status dots, no decoration. Confirms the Sites table just needs polish, not replacement.</div>
+                <a class="reflink" href="https://mobbin.com/screens/ab0d198c-9365-457a-bdeb-84b210f325ce" target="_blank">View on Mobbin →</a>
+            </div>
+        </div>
+        <div class="card refcard">
+            <img src="refs/incident-io.webp" alt="incident.io timeline">
+            <div class="refbody">
+                <div class="refname">incident.io <span class="refchip">7</span></div>
+                <div class="refnote">Scannable event timeline with severity colouring — the pattern for surfacing SiteCommand / UpdateRun history fleet-wide.</div>
+                <a class="reflink" href="https://mobbin.com/screens/12799f14-5784-4df2-97b6-7c9a8406fa09" target="_blank">View on Mobbin →</a>
+            </div>
+        </div>
+        <div class="card refcard">
+            <img src="refs/1password.webp" alt="1Password security dashboard">
+            <div class="refbody">
+                <div class="refname">1Password <span class="refchip">8</span></div>
+                <div class="refnote">Watchtower-style pass/fail check summary with friendly, non-alarming copy — the tone for the fleet checks list.</div>
+                <a class="reflink" href="https://mobbin.com/screens/01399ac0-e9ac-43e8-a94a-90b04f813f74" target="_blank">View on Mobbin →</a>
+            </div>
+        </div>
+        <div class="card refcard">
+            <img src="refs/railway.webp" alt="Railway resource detail page">
+            <div class="refbody">
+                <div class="refname">Railway <span class="refchip">9</span></div>
+                <div class="refnote">Resource header done right: name, status and actions in one strip, tabs right below. The model for the site detail header and its seven tabs.</div>
+                <a class="reflink" href="https://mobbin.com/screens/fe76e123-f3c7-426b-a58e-b8b3188063d9" target="_blank">View on Mobbin →</a>
+            </div>
+        </div>
+        <div class="card refcard">
+            <img src="refs/vercel.webp" alt="Vercel project overview">
+            <div class="refbody">
+                <div class="refname">Vercel <span class="refchip">10</span></div>
+                <div class="refnote">Dense project-overview metrics cards that still feel calm — the model for the upgraded Security / Updates / Uptime category cards.</div>
+                <a class="reflink" href="https://mobbin.com/screens/2d216618-1a78-48ed-8279-01c025c60423" target="_blank">View on Mobbin →</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="doc-foot">
+        <p><b>Sample data, real vocabulary.</b> Scores, updates, vulnerabilities and uptime above are invented but consistent (12 sites, avg score 80, 44 pending updates, 16 open vulnerabilities). The 14 security checks are Plugsent's actual checks from <code>app/Actions/EvaluateSiteSecurity.php</code>; site fields match <code>app/Models/Site.php</code>.</p>
+        <p><b>Scope if we build it:</b> the dashboard is new Filament v5 widgets; the Sites list is column + grouping tweaks to the existing table; the site overview restyles the category cards you already render. All styled with the existing <code>plugsent.css</code> vocabulary — no new dependency, no chart library (bars and rings are CSS/SVG). Every other page stays untouched.</p>
+        <p><b>References:</b> thumbnails downloaded from Mobbin (links above; image URLs expire after ~30 days). Brand font loaded from the panel's own self-hosted file — keep this file inside the repo for full fidelity.</p>
+    </div>
+
+</div>
+
+<script>
+function toggleTheme() {
+    const root = document.documentElement;
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+}
+// Build the 30-day uptime bars from compact patterns:
+// "g" = all green, "g24n" = 24 green then 6 no-data,
+// other strings: letters repeat-fill to 30 slots ("g-a--a-g" etc.)
+document.querySelectorAll('.bars').forEach(el => {
+    const pattern = el.dataset.pattern || 'g';
+    let seq = [];
+    if (pattern === 'g') seq = Array(30).fill('g');
+    else if (pattern === 'g24n') seq = [...Array(24).fill('g'), ...Array(6).fill('n')];
+    else {
+        const letters = pattern.split('-');
+        const per = Math.max(1, Math.floor(30 / letters.length));
+        letters.forEach(l => { for (let i = 0; i < per; i++) seq.push(l || 'g'); });
+        while (seq.length < 30) seq.push(letters[letters.length - 1] || 'g');
+    }
+    seq.slice(0, 30).forEach(c => {
+        const s = document.createElement('span');
+        if (c === 'a' || c === 'r' || c === 'n') s.className = c;
+        el.appendChild(s);
+    });
+});
+</script>
+</body>
+</html>
