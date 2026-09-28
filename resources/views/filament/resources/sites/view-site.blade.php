@@ -28,6 +28,8 @@
             'disable_xmlrpc' => 'Disable XML-RPC',
         ];
         $failedChecks = $security !== null ? collect($security['checks'])->reject(fn ($c) => $c['passed']) : collect();
+        $pluginPending = $connected ? $this->pendingCountFor('plugin') : 0;
+        $corePending = $connected ? $this->pendingCountFor('core') : 0;
     @endphp
 
     <div class="plugsent-site-strip">
@@ -86,6 +88,12 @@
                 @if($key === 'security' && $security !== null && $failedChecks->count() > 0)
                     <span class="plugsent-badge plugsent-badge-danger">{{ $failedChecks->count() }}</span>
                 @endif
+                @if($key === 'plugins' && $pluginPending > 0)
+                    <span class="plugsent-badge plugsent-badge-warn">{{ $pluginPending }}</span>
+                @endif
+                @if($key === 'core' && $corePending > 0)
+                    <span class="plugsent-badge plugsent-badge-warn">{{ $corePending }}</span>
+                @endif
             </button>
         @endforeach
     </nav>
@@ -116,62 +124,183 @@
 
     {{-- ============ Overview ============ --}}
     @if($tab === 'overview')
+        @php
+            $uptimeRate = $this->site->uptime_enabled ? $this->uptimeRate() : null;
+            $pendingItems = $connected
+                ? $this->site->inventory()
+                    ->where('update_available', true)
+                    ->orderByRaw("CASE WHEN context = 'core' THEN 0 ELSE 1 END")
+                    ->orderByDesc('vuln_count')
+                    ->limit(6)
+                    ->get()
+                : collect();
+            $totalPending = $pluginPending + $corePending + ($connected ? $this->pendingCountFor('theme') : 0);
+            $fixableChecks = $failedChecks->filter(fn ($c) => $c['fix'] !== null);
+            $quickWinPoints = $fixableChecks->isNotEmpty()
+                ? (int) round($fixableChecks->count() / max(1, count($security['checks'])) * 100)
+                : 0;
+        @endphp
         <div class="plugsent-overview-grid">
             <div class="plugsent-category">
-                <div class="plugsent-category-head"><h2>Security</h2></div>
+                <div class="plugsent-category-head">
+                    <h2>Security</h2>
+                    @if($security !== null)
+                        <button type="button" class="plugsent-btn plugsent-btn-sm" wire:click="switchTab('security')">Open Security</button>
+                    @endif
+                </div>
                 @if(! $securitySupported)
                     <p class="plugsent-empty">Update the Plugsent Connector on this site to 0.13.0+ to enable security scans and hardening.</p>
                 @elseif($security === null)
                     <p class="plugsent-empty">No security scan yet — first scan queued on the site's next check-in.</p>
                 @else
-                    <div class="plugsent-overview-card">
-                        <span class="plugsent-security-score-num plugsent-security-score-{{ $security['score'] >= 80 ? 'good' : ($security['score'] >= 50 ? 'fair' : 'poor') }}">
-                            {{ $security['score'] }}<small>/100</small>
-                        </span>
-                        <div class="plugsent-overview-card-body">
-                            @if($failedChecks->isEmpty())
-                                <span class="plugsent-state plugsent-state-up">All {{ $security['checks']|count }} checks passed</span>
-                            @else
-                                <strong>{{ $failedChecks->count() }} item(s) need attention</strong>
-                                <span class="plugsent-muted">{{ $failedChecks->take(2)->pluck('label')->implode(' · ') }}@if($failedChecks->count() > 2) · …@endif</span>
-                            @endif
-                            <button type="button" class="plugsent-btn plugsent-btn-sm" wire:click="switchTab('security')">Open Security</button>
+                    <div class="plugsent-ov-sec">
+                        <div class="plugsent-ring plugsent-ring-sm plugsent-ring-{{ $security['score'] >= 80 ? 'good' : ($security['score'] >= 50 ? 'fair' : 'poor') }}">
+                            <svg viewBox="0 0 108 108" aria-hidden="true">
+                                <circle cx="54" cy="54" r="44" class="plugsent-ring-track"/>
+                                <circle cx="54" cy="54" r="44" class="plugsent-ring-fill" stroke-dasharray="{{ round($security['score'] / 100 * 276.5, 1) }} 276.5"/>
+                            </svg>
+                            <div class="plugsent-ring-center">
+                                <span class="plugsent-ring-value">{{ $security['score'] }}</span>
+                                <span class="plugsent-ring-of">/ 100</span>
+                            </div>
+                        </div>
+                        <div class="plugsent-ov-sec-summary">
+                            <strong>{{ count($security['checks']) - $failedChecks->count() }} of {{ count($security['checks']) }} checks passing</strong>
+                            <span class="plugsent-muted">scanned {{ $this->site->security_scanned_at?->diffForHumans() ?? '—' }}</span>
                         </div>
                     </div>
+
+                    @if($failedChecks->isNotEmpty())
+                        <ul class="plugsent-ov-fail-list">
+                            @foreach($failedChecks->take(4) as $check)
+                                <li>
+                                    <span class="plugsent-ov-fail-x">✕</span>
+                                    <div>
+                                        <strong>{{ $check['label'] }}</strong>
+                                        <span class="plugsent-muted">{{ \Illuminate\Support\Str::limit($check['detail'], 90) }}</span>
+                                    </div>
+                                </li>
+                            @endforeach
+                            @if($failedChecks->count() > 4)
+                                <li class="plugsent-muted">+ {{ $failedChecks->count() - 4 }} more in Security</li>
+                            @endif
+                        </ul>
+                    @endif
+
+                    @if($fixableChecks->isNotEmpty() && $connected && $securitySupported)
+                        <div class="plugsent-ov-quickwin">
+                            <strong>Quick wins</strong> — hardening fixes that pass {{ $fixableChecks->count() }} more check{{ $fixableChecks->count() === 1 ? '' : 's' }} (+{{ $quickWinPoints }} pts):
+                            <ul>
+                                @foreach($fixableChecks->take(2) as $check)
+                                    <li>
+                                        <span>{{ $check['label'] }}</span>
+                                        <button type="button" class="plugsent-btn plugsent-btn-sm"
+                                                wire:click="requestHardening('{{ $check['fix'] }}', true)"
+                                                @if($this->hardeningInFlight($check['fix'], true)) disabled @endif>
+                                            @if($this->hardeningInFlight($check['fix'], true)) Applying… @else Fix @endif
+                                        </button>
+                                    </li>
+                                @endforeach
+                                @if($fixableChecks->count() > 2)
+                                    <li class="plugsent-muted">+ {{ $fixableChecks->count() - 2 }} more in Security</li>
+                                @endif
+                            </ul>
+                        </div>
+                    @endif
                 @endif
             </div>
 
             <div class="plugsent-category">
-                <div class="plugsent-category-head"><h2>Updates</h2></div>
-                <ul class="plugsent-security-list">
-                    @foreach(['plugin' => 'Plugins', 'theme' => 'Themes', 'core' => 'WordPress core'] as $ctx => $label)
-                        @php $pending = $this->pendingCountFor($ctx); @endphp
-                        <li>
-                            <div>
-                                <strong>{{ $label }}</strong>
-                                <span class="plugsent-muted">{{ $pending > 0 ? $pending.' update(s) available' : 'Up to date' }}</span>
-                            </div>
-                            <button type="button" class="plugsent-btn plugsent-btn-sm" wire:click="switchTab('{{ $ctx }}')">Manage</button>
-                        </li>
-                    @endforeach
-                </ul>
+                <div class="plugsent-category-head">
+                    <h2>Updates</h2>
+                    @if($totalPending > 0 && $connected)
+                        <button type="button" class="plugsent-btn plugsent-btn-sm" wire:click="switchTab('plugins')">Manage</button>
+                    @endif
+                </div>
+                @if($totalPending === 0)
+                    <p class="plugsent-empty">{{ $connected ? 'Everything is up to date.' : 'Updates appear once the site connects and reports inventory.' }}</p>
+                @else
+                    <ul class="plugsent-ov-upd-list">
+                        @foreach($pendingItems->take(5) as $item)
+                            @php
+                                $isExcluded = $this->site->isExcludedFromUpdates($item->context, $item->slug);
+                                $inFlight = $this->inFlightFor($item);
+                            @endphp
+                            <li>
+                                <div class="plugsent-ov-upd-name">
+                                    <strong>{{ $item->name }}</strong>
+                                    @if((int) $item->vuln_count > 0)
+                                        <span class="plugsent-state plugsent-state-down">⚠ {{ $item->vuln_count }}</span>
+                                    @endif
+                                </div>
+                                <span class="plugsent-ov-upd-ver">
+                                    {{ $item->version }} → <span class="plugsent-version-new">{{ $item->update_version }}</span>
+                                </span>
+                                @if($isExcluded)
+                                    <span class="plugsent-state plugsent-state-inactive">excluded</span>
+                                @elseif($connected && ! $inFlight)
+                                    <button type="button" class="plugsent-btn plugsent-btn-sm"
+                                            wire:click="requestUpdate('{{ $item->context }}', '{{ $item->slug }}')">Update</button>
+                                @endif
+                            </li>
+                        @endforeach
+                        @if($totalPending > $pendingItems->take(5)->count())
+                            <li class="plugsent-muted">+ {{ $totalPending - $pendingItems->take(5)->count() }} more</li>
+                        @endif
+                    </ul>
+                    @if($connected)
+                        <div class="plugsent-ov-upd-actions">
+                            @if($corePending > 0)
+                                <button type="button" class="plugsent-btn plugsent-btn-sm" wire:click="updateCategory('core')">Update core ({{ $corePending }})</button>
+                            @endif
+                            @if($pluginPending > 0)
+                                <button type="button" class="plugsent-btn plugsent-btn-sm" wire:click="updateCategory('plugin')">Update plugins ({{ $pluginPending }})</button>
+                            @endif
+                            <span class="plugsent-muted">restore point · smoke test · auto-rollback</span>
+                        </div>
+                    @endif
+                @endif
             </div>
 
             <div class="plugsent-category">
-                <div class="plugsent-category-head"><h2>Uptime</h2></div>
-                <div class="plugsent-overview-card plugsent-overview-card-col">
+                <div class="plugsent-category-head">
+                    <h2>Uptime</h2>
+                    <button type="button" class="plugsent-btn plugsent-btn-sm" wire:click="switchTab('uptime')">Uptime details</button>
+                </div>
+                <div class="plugsent-ov-up">
                     @if(! $this->site->uptime_enabled)
                         <span class="plugsent-state plugsent-state-inactive">Monitoring paused</span>
-                    @elseif($this->site->uptime_status === 'up')
-                        <span class="plugsent-state plugsent-state-up">Up</span>
-                        <span class="plugsent-muted">Last check {{ $this->site->uptime_last_checked_at?->diffForHumans() ?? '—' }}</span>
-                    @elseif($this->site->uptime_status === 'down')
-                        <span class="plugsent-state plugsent-state-down">Down</span>
-                        <span class="plugsent-muted">{{ $this->site->activeIncident() ? 'Ongoing incident' : 'Recently recovered' }}</span>
                     @else
-                        <span class="plugsent-state plugsent-state-inactive">Waiting for first check</span>
+                        @if($this->site->uptime_status === 'up')
+                            <span class="plugsent-ov-up-state plugsent-ov-up-state-up"><i></i>Up · checked {{ $this->site->uptime_last_checked_at?->diffForHumans() ?? '—' }} · every {{ config('plugsent.uptime_interval_minutes', 5) }} min</span>
+                        @elseif($this->site->uptime_status === 'down')
+                            <span class="plugsent-ov-up-state plugsent-ov-up-state-down"><i></i>Down — {{ $this->site->activeIncident() ? 'ongoing incident' : 'recently recovered' }}</span>
+                        @else
+                            <span class="plugsent-ov-up-state"><i></i>Waiting for first check</span>
+                        @endif
+
+                        @if($uptimeRate !== null)
+                            <span class="plugsent-up-bars plugsent-ov-up-bars">
+                                @foreach($uptimeRate['days'] as $day)
+                                    @php
+                                        $barTone = $day['downtime_seconds'] === 0 ? 'ok'
+                                            : ((1 - $day['downtime_seconds'] / 86400) * 100 >= 95 ? 'warn' : 'bad');
+                                    @endphp
+                                    <i class="plugsent-up-bar plugsent-up-bar-{{ $barTone }}" title="{{ $day['label'] }}"></i>
+                                @endforeach
+                            </span>
+                            <div class="plugsent-ov-up-rate">
+                                <strong class="{{ $uptimeRate['pct'] >= 99.5 ? 'plugsent-up-pct-ok' : ($uptimeRate['pct'] >= 95 ? 'plugsent-up-pct-warn' : 'plugsent-up-pct-bad') }}">{{ number_format($uptimeRate['pct'], 2) }}%</strong>
+                                <span class="plugsent-muted">uptime over 30 days</span>
+                            </div>
+                        @endif
+
+                        <dl class="plugsent-ov-exp">
+                            <div><dt>SSL expires</dt><dd>{{ $this->site->ssl_expires_at?->format('M j, Y') ?? '—' }}</dd></div>
+                            <div><dt>Domain expires</dt><dd>{{ $this->site->domain_expires_at?->format('M j, Y') ?? '—' }}</dd></div>
+                            <div><dt>Last check</dt><dd>{{ $this->site->uptime_last_checked_at?->diffForHumans() ?? '—' }}{{ $this->site->uptime_last_status_code ? ' · HTTP '.$this->site->uptime_last_status_code : '' }}</dd></div>
+                        </dl>
                     @endif
-                    <button type="button" class="plugsent-btn plugsent-btn-sm" wire:click="switchTab('uptime')">Uptime details</button>
                 </div>
             </div>
         </div>

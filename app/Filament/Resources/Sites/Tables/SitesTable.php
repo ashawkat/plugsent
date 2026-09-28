@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Sites\Tables;
 
 use App\Actions\EnqueueSiteCommand;
+use App\Actions\GetFleetSummary;
 use App\Filament\Resources\Sites\SiteResource;
 use App\Models\Site;
 use Filament\Actions\Action;
@@ -14,8 +15,10 @@ use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 class SitesTable
 {
@@ -35,16 +38,34 @@ class SitesTable
                     ->label('Project'),
                 TextColumn::make('pending_updates')
                     ->label('Updates')
-                    ->state(fn (Site $record): int => $record->inventory()->where('update_available', true)->count())
+                    ->state(function (Site $record): string {
+                        $pending = $record->inventory()
+                            ->where('update_available', true)
+                            ->pluck('context');
+
+                        if ($pending->isEmpty()) {
+                            return 'Up to date';
+                        }
+
+                        $parts = [];
+
+                        foreach (['core' => 'core', 'plugin' => 'plugins', 'theme' => 'themes'] as $context => $label) {
+                            $count = $pending->filter(fn (string $item): bool => $item === $context)->count();
+
+                            if ($count > 0) {
+                                $parts[] = $count.' '.$label;
+                            }
+                        }
+
+                        return implode(' · ', $parts);
+                    })
                     ->badge()
-                    ->color(fn (int $state): string => $state > 0 ? 'warning' : 'success')
-                    ->formatStateUsing(fn (int $state): string => $state > 0 ? "{$state} pending" : 'Up to date'),
+                    ->color(fn (string $state): string => $state === 'Up to date' ? 'success' : 'warning'),
                 TextColumn::make('vulnerabilities')
                     ->label('Vulnerabilities')
-                    ->badge()
-                    ->state(fn (Site $record): int => (int) $record->inventory()->sum('vuln_count'))
-                    ->color(fn (int $state): string => $state > 0 ? 'danger' : 'gray')
-                    ->formatStateUsing(fn (int $state): string => $state > 0 ? "{$state} vulnerable" : 'None known'),
+                    ->html()
+                    ->state(fn (Site $record): string => self::severityDots($record))
+                    ->color('gray'),
                 TextColumn::make('security_score')
                     ->label('Security')
                     ->badge()
@@ -59,19 +80,8 @@ class SitesTable
                     }),
                 TextColumn::make('uptime_status')
                     ->label('Uptime')
-                    ->badge()
-                    ->state(fn (Site $record): string => match ($record->uptime_status) {
-                        Site::UPTIME_UP => $record->uptime_last_checked_at !== null
-                            ? 'Up · '.$record->uptime_last_checked_at->diffForHumans()
-                            : 'Up',
-                        Site::UPTIME_DOWN => 'Down',
-                        default => '—',
-                    })
-                    ->color(fn (Site $record): string => match ($record->uptime_status) {
-                        Site::UPTIME_UP => 'success',
-                        Site::UPTIME_DOWN => 'danger',
-                        default => 'gray',
-                    }),
+                    ->html()
+                    ->state(fn (Site $record): string => self::uptimeStrip($record)),
                 TextColumn::make('status')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
@@ -105,6 +115,18 @@ class SitesTable
                         ),
                     ),
             ])
+            ->groups([
+                Group::make('project.name')->label('Project')->collapsible(),
+            ])
+            ->defaultGroup('project.name')
+            ->defaultSort(fn (Builder $query): Builder => $query
+                // Risk ordering: disconnected sites first, then lowest score
+                // (nulls last), then name. User-triggered sorts replace it.
+                ->orderByRaw('CASE WHEN status = ? THEN 1 ELSE 0 END', ['connected'])
+                ->orderByRaw('security_score IS NULL ASC')
+                ->orderBy('security_score')
+                ->orderBy('name'))
+            ->recordClasses(fn (Site $record): string => $record->isConnected() ? '' : 'plugsent-risk-row')
             ->recordActions([
                 EditAction::make()
                     ->iconButton()
@@ -148,5 +170,77 @@ class SitesTable
                     DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    /**
+     * Severity dots ("● 1 crit · ● 2 high · …") from the cached fleet
+     * summary, so the whole table shares one vulnerability-matching pass.
+     */
+    private static function severityDots(Site $record): string
+    {
+        $summary = app(GetFleetSummary::class)(Filament::getTenant(), auth()->user());
+        $perSite = $summary['per_site'][$record->getKey()] ?? null;
+
+        if ($perSite === null || $perSite['vulns'] === 0) {
+            return '<span class="plugsent-pill plugsent-pill-none">None known</span>';
+        }
+
+        $labels = [
+            'critical' => 'critical',
+            'high' => 'high',
+            'medium' => 'medium',
+            'low' => 'low',
+            'unknown' => 'unrated',
+        ];
+
+        $dots = [];
+
+        foreach ($labels as $severity => $label) {
+            $count = $perSite['vuln_severities'][$severity];
+
+            if ($count > 0) {
+                $dots[] = '<span class="plugsent-sev plugsent-sev-'.$severity.'" title="'.$count.' '.$label.'">'
+                    .'<i></i>'.$count.' '.($count === 1 ? $label : Str::plural($label)).'</span>';
+            }
+        }
+
+        return implode('', $dots);
+    }
+
+    /**
+     * 30-day mini strip + rate from the cached fleet summary's uptime rows.
+     */
+    private static function uptimeStrip(Site $record): string
+    {
+        if (! $record->uptime_enabled) {
+            return '<span class="plugsent-pill plugsent-pill-none">Paused</span>';
+        }
+
+        $summary = app(GetFleetSummary::class)(Filament::getTenant(), auth()->user());
+
+        $row = collect($summary['uptime_rows'])
+            ->first(fn (array $row): bool => $row['site']->getKey() === $record->getKey());
+
+        if ($row === null) {
+            return '<span class="plugsent-pill plugsent-pill-none">—</span>';
+        }
+
+        $tone = $row['pct'] >= 99.5 ? 'ok' : ($row['pct'] >= 95 ? 'warn' : 'bad');
+
+        $bars = '';
+
+        foreach ($row['days'] as $index => $day) {
+            if ($day['downtime_seconds'] === 0) {
+                $barTone = 'ok';
+            } else {
+                $dayPct = (1 - $day['downtime_seconds'] / 86400) * 100;
+                $barTone = $dayPct >= 95 ? 'warn' : 'bad';
+            }
+
+            $bars .= '<i class="plugsent-up-bar plugsent-up-bar-'.$barTone.'" title="'.e($day['label']).'"></i>';
+        }
+
+        return '<span class="plugsent-tstrip">'.$bars.'</span>'
+            .'<span class="plugsent-up-pct plugsent-up-pct-'.$tone.'">'.number_format($row['pct'], 2).'%</span>';
     }
 }
