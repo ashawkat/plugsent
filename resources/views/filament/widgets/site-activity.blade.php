@@ -1,3 +1,4 @@
+<x-filament-widgets::widget>
 <div class="plugsent-dash-card">
     <h3 class="plugsent-dash-card-title">Recent activity</h3>
 
@@ -20,3 +21,4 @@
         </ul>
     @endif
 </div>
+</x-filament-widgets::widget>

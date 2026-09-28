@@ -1,3 +1,4 @@
+<x-filament-widgets::widget>
 <div class="plugsent-dash-card">
     <h3 class="plugsent-dash-card-title">Fleet health</h3>
 
@@ -41,3 +42,4 @@
         </ul>
     @endif
 </div>
+</x-filament-widgets::widget>

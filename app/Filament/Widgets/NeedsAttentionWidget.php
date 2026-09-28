@@ -26,16 +26,14 @@ class NeedsAttentionWidget extends Widget
     {
         $summary = app(GetFleetSummary::class)(Filament::getTenant(), auth()->user());
 
-        $rows = array_map(function (array $row) use ($summary): array {
+        $rows = array_map(function (array $row): array {
             return [
                 'id' => $row['site_id'],
                 'name' => $row['site_name'],
                 'url' => $row['site_url'],
                 'view_url' => SiteResource::getUrl('view', ['record' => $row['site_id']]),
                 'score' => $row['score'],
-                'updates' => $row['updates'],
                 'vulns' => $row['vulns'],
-                'uptime' => $this->uptimeFor($summary, $row['site_id']),
                 'reasons' => $row['reasons'],
             ];
         }, $summary['attention']);
@@ -44,19 +42,5 @@ class NeedsAttentionWidget extends Widget
             'rows' => $rows,
             'sitesUrl' => SiteResource::getUrl('index'),
         ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $summary
-     */
-    private function uptimeFor(array $summary, int $siteId): ?float
-    {
-        foreach ($summary['uptime_rows'] as $row) {
-            if ($row['site_id'] === $siteId) {
-                return $row['pct'];
-            }
-        }
-
-        return null;
     }
 }

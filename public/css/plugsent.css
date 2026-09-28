@@ -1815,13 +1815,13 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 10px 0 6px;
+    padding: 4px 0 2px;
 }
 
 .plugsent-ring {
     position: relative;
-    width: 150px;
-    height: 150px;
+    width: 124px;
+    height: 124px;
 }
 
 .plugsent-ring svg {
@@ -1871,14 +1871,14 @@ body {
 }
 
 .plugsent-ring-value {
-    font-size: 34px;
+    font-size: 28px;
     font-weight: 700;
     line-height: 1;
     letter-spacing: -0.02em;
 }
 
 .plugsent-ring-of {
-    font-size: 11px;
+    font-size: 10.5px;
     color: #9ca3af;
     margin-top: 3px;
 }
@@ -1886,7 +1886,7 @@ body {
 .plugsent-ring-caption {
     font-size: 12px;
     color: #6b7280;
-    margin: 10px 0 0;
+    margin: 8px 0 0;
 }
 
 .dark .plugsent-ring-caption {
@@ -1924,8 +1924,8 @@ body {
 
 .plugsent-dash-stat-list {
     list-style: none;
-    margin: 12px 0 0;
-    padding: 10px 0 0;
+    margin: 8px 0 0;
+    padding: 8px 0 0;
     border-top: 1px solid #f0f1f4;
 }
 
@@ -1939,7 +1939,7 @@ body {
     gap: 9px;
     font-size: 12.5px;
     color: #6b7280;
-    padding: 4.5px 0;
+    padding: 3.5px 0;
 }
 
 .dark .plugsent-dash-stat-list li {

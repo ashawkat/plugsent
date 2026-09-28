@@ -1,3 +1,4 @@
+<x-filament-widgets::widget>
 <div class="plugsent-dash-card plugsent-dash-card-flush">
     <div class="plugsent-dash-card-head">
         <h3 class="plugsent-dash-card-title">Uptime · last 30 days</h3>
@@ -31,3 +32,4 @@
         @endif
     @endif
 </div>
+</x-filament-widgets::widget>

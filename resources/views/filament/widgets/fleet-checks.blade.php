@@ -1,3 +1,4 @@
+<x-filament-widgets::widget>
 <div class="plugsent-dash-card">
     <div class="plugsent-dash-card-head">
         <h3 class="plugsent-dash-card-title">Security checks</h3>
@@ -20,3 +21,4 @@
         </ul>
     @endif
 </div>
+</x-filament-widgets::widget>
