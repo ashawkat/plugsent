@@ -19,3 +19,7 @@ Schedule::command('vuln:sync')->weeklyOn(1, '3:00');
 
 // The once-a-day "updates available" digest, first thing in the morning.
 Schedule::command('plugsent:updates-digest')->dailyAt('08:00');
+
+// Daily fleet stats for the dashboard's trend charts (one row per
+// workspace per day; re-running the same day updates in place).
+Schedule::command('plugsent:snapshot-fleet')->dailyAt('00:05');
