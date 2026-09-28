@@ -1711,3 +1711,884 @@ body {
     background: #0f172a;
     border-color: #334155;
 }
+
+/* ==================================================================
+ * Fleet dashboard (widgets) — see design-mockups/dashboard-proposal.html
+ * ================================================================== */
+
+.plugsent-dash-greet {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.plugsent-dash-greet-title {
+    font-size: 21px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    margin: 0;
+}
+
+.plugsent-dash-greet-sub {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 3px 0 0;
+}
+
+.dark .plugsent-dash-greet-sub {
+    color: #9ca3af;
+}
+
+.plugsent-dash-greet-actions {
+    display: flex;
+    gap: 9px;
+    flex-wrap: wrap;
+}
+
+.plugsent-dash-btn {
+    font-size: 13.5px;
+}
+
+.plugsent-dash-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 16px 18px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+.dark .plugsent-dash-card {
+    background: #111318;
+    border-color: #262a31;
+}
+
+.plugsent-dash-card-flush {
+    padding: 0;
+}
+
+.plugsent-dash-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px 10px;
+}
+
+.plugsent-dash-card-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    margin: 0;
+}
+
+.plugsent-dash-card-flush .plugsent-dash-card-title,
+.plugsent-dash-card-flush .plugsent-empty {
+    padding-left: 16px;
+    padding-right: 16px;
+}
+
+.plugsent-dash-card-sub {
+    font-size: 11.5px;
+    color: #9ca3af;
+    margin: 0 0 10px;
+    padding: 0 18px;
+}
+
+.dark .plugsent-dash-card-sub {
+    color: #6b7280;
+}
+
+.plugsent-dash-card-foot {
+    border-top: 1px solid #f0f1f4;
+    padding: 10px 16px 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.dark .plugsent-dash-card-foot {
+    border-color: #20242a;
+}
+
+/* --- Score ring --- */
+
+.plugsent-ring-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 0 6px;
+}
+
+.plugsent-ring {
+    position: relative;
+    width: 150px;
+    height: 150px;
+}
+
+.plugsent-ring svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.plugsent-ring-track {
+    fill: none;
+    stroke: #eef0f3;
+    stroke-width: 11;
+}
+
+.dark .plugsent-ring-track {
+    stroke: #262a31;
+}
+
+.plugsent-ring-fill {
+    fill: none;
+    stroke: #22c55e;
+    stroke-width: 11;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.4s ease;
+}
+
+.plugsent-ring-fair .plugsent-ring-fill {
+    stroke: #f59e0b;
+}
+
+.plugsent-ring-poor .plugsent-ring-fill {
+    stroke: #ef4444;
+}
+
+.plugsent-ring-unknown .plugsent-ring-fill {
+    stroke: #9ca3af;
+}
+
+.plugsent-ring-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.plugsent-ring-value {
+    font-size: 34px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
+}
+
+.plugsent-ring-of {
+    font-size: 11px;
+    color: #9ca3af;
+    margin-top: 3px;
+}
+
+.plugsent-ring-caption {
+    font-size: 12px;
+    color: #6b7280;
+    margin: 10px 0 0;
+}
+
+.dark .plugsent-ring-caption {
+    color: #9ca3af;
+}
+
+.plugsent-delta {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11.5px;
+    font-weight: 700;
+    margin-top: 7px;
+}
+
+.plugsent-delta-up {
+    color: #16a34a;
+}
+
+.plugsent-delta-down {
+    color: #dc2626;
+}
+
+.plugsent-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+}
+
+.plugsent-dot-good { background: #22c55e; }
+.plugsent-dot-fair { background: #f59e0b; }
+.plugsent-dot-bad { background: #ef4444; }
+
+.plugsent-dash-stat-list {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 10px 0 0;
+    border-top: 1px solid #f0f1f4;
+}
+
+.dark .plugsent-dash-stat-list {
+    border-color: #20242a;
+}
+
+.plugsent-dash-stat-list li {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 12.5px;
+    color: #6b7280;
+    padding: 4.5px 0;
+}
+
+.dark .plugsent-dash-stat-list li {
+    color: #9ca3af;
+}
+
+.plugsent-dash-stat-list strong {
+    color: #111827;
+    font-weight: 600;
+}
+
+.dark .plugsent-dash-stat-list strong {
+    color: #f3f4f6;
+}
+
+/* --- Pills (score / updates / vulns / uptime badges) --- */
+
+.plugsent-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 2.5px 9px;
+    white-space: nowrap;
+}
+
+.plugsent-pill-ok { background: #dcfce7; color: #15803d; }
+.plugsent-pill-warn { background: #fef3c7; color: #b45309; }
+.plugsent-pill-bad { background: #fee2e2; color: #b91c1c; }
+.plugsent-pill-none { background: #f3f4f6; color: #6b7280; }
+
+.dark .plugsent-pill-ok { background: rgba(34, 197, 94, 0.16); color: #4ade80; }
+.dark .plugsent-pill-warn { background: rgba(245, 158, 11, 0.16); color: #fbbf24; }
+.dark .plugsent-pill-bad { background: rgba(239, 68, 68, 0.16); color: #f87171; }
+.dark .plugsent-pill-none { background: #262a31; color: #9ca3af; }
+
+/* --- Needs-attention table --- */
+
+.plugsent-table-wrap {
+    overflow-x: auto;
+}
+
+.plugsent-att-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.plugsent-att-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #9ca3af;
+    padding: 8px 14px;
+    border-bottom: 1px solid #f0f1f4;
+}
+
+.dark .plugsent-att-table th {
+    color: #6b7280;
+    border-color: #20242a;
+}
+
+.plugsent-att-table td {
+    padding: 9px 14px;
+    border-bottom: 1px solid #f0f1f4;
+    vertical-align: middle;
+}
+
+.dark .plugsent-att-table td {
+    border-color: #20242a;
+}
+
+.plugsent-att-table tbody tr:hover {
+    background: #f8f9fb;
+}
+
+.dark .plugsent-att-table tbody tr:hover {
+    background: #16191f;
+}
+
+.plugsent-att-site {
+    font-weight: 600;
+    color: #4f46e5;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.plugsent-att-site:hover {
+    text-decoration: underline;
+}
+
+.dark .plugsent-att-site {
+    color: #a5b4fc;
+}
+
+.plugsent-att-url {
+    display: block;
+    font-size: 11px;
+    color: #9ca3af;
+    white-space: nowrap;
+}
+
+.plugsent-att-why {
+    font-size: 11.5px;
+    color: #9ca3af;
+    max-width: 240px;
+    line-height: 1.45;
+}
+
+.dark .plugsent-att-why {
+    color: #9ca3af;
+}
+
+/* --- Fleet checks --- */
+
+.plugsent-check-list {
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 0 18px 14px;
+}
+
+.plugsent-check-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 3.5px 0;
+}
+
+.plugsent-check-label {
+    flex: 0 0 165px;
+    font-size: 12px;
+    color: #6b7280;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dark .plugsent-check-label {
+    color: #9ca3af;
+}
+
+.plugsent-check-track {
+    flex: 1;
+    height: 6px;
+    border-radius: 999px;
+    background: #eef0f3;
+    overflow: hidden;
+}
+
+.dark .plugsent-check-track {
+    background: #262a31;
+}
+
+.plugsent-check-fill {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+}
+
+.plugsent-check-fill-good { background: #22c55e; }
+.plugsent-check-fill-fair { background: #f59e0b; }
+.plugsent-check-fill-bad { background: #ef4444; }
+
+.plugsent-check-count {
+    flex: 0 0 40px;
+    text-align: right;
+    font-size: 11px;
+    font-weight: 600;
+    color: #9ca3af;
+    font-variant-numeric: tabular-nums;
+}
+
+/* --- Activity feed --- */
+
+.plugsent-feed {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+}
+
+.plugsent-feed-item {
+    display: flex;
+    gap: 11px;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f1f4;
+}
+
+.plugsent-feed-item:last-child {
+    border-bottom: none;
+}
+
+.dark .plugsent-feed-item {
+    border-color: #20242a;
+}
+
+.plugsent-feed-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex: 0 0 auto;
+}
+
+.plugsent-feed-dot-ok { background: #22c55e; }
+.plugsent-feed-dot-bad { background: #ef4444; }
+.plugsent-feed-dot-busy { background: #6366f1; }
+
+.plugsent-feed-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.plugsent-feed-text {
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: #374151;
+    margin: 0;
+}
+
+.dark .plugsent-feed-text {
+    color: #d1d5db;
+}
+
+.plugsent-feed-text a {
+    font-weight: 600;
+    color: #4f46e5;
+    text-decoration: none;
+}
+
+.plugsent-feed-text a:hover {
+    text-decoration: underline;
+}
+
+.dark .plugsent-feed-text a {
+    color: #a5b4fc;
+}
+
+.plugsent-feed-time {
+    font-size: 11px;
+    color: #9ca3af;
+    margin: 1px 0 0;
+}
+
+/* --- Fleet uptime strips --- */
+
+.plugsent-up-legend {
+    display: flex;
+    gap: 14px;
+    font-size: 11px;
+    color: #9ca3af;
+    margin-left: auto;
+    align-items: center;
+    font-weight: 400;
+}
+
+.plugsent-up-key {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 2.5px;
+    margin-right: 4px;
+    vertical-align: -1px;
+}
+
+.plugsent-up-rows {
+    list-style: none;
+    margin: 0;
+    padding: 4px 16px 12px;
+}
+
+.plugsent-up-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 7px 0;
+    border-bottom: 1px solid #f0f1f4;
+}
+
+.plugsent-up-row:last-child {
+    border-bottom: none;
+}
+
+.dark .plugsent-up-row {
+    border-color: #20242a;
+}
+
+.plugsent-up-site {
+    flex: 0 0 190px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #4f46e5;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.plugsent-up-site:hover {
+    text-decoration: underline;
+}
+
+.dark .plugsent-up-site {
+    color: #a5b4fc;
+}
+
+.plugsent-up-bars {
+    flex: 1;
+    display: flex;
+    gap: 2px;
+    height: 20px;
+    min-width: 0;
+}
+
+.plugsent-up-bar {
+    flex: 1;
+    border-radius: 2.5px;
+    background: #22c55e;
+    opacity: 0.82;
+}
+
+.plugsent-up-bar-warn { background: #f59e0b; opacity: 1; }
+.plugsent-up-bar-bad { background: #ef4444; opacity: 1; }
+
+.plugsent-up-pct {
+    flex: 0 0 56px;
+    text-align: right;
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.plugsent-up-pct-ok { color: #16a34a; }
+.plugsent-up-pct-warn { color: #b45309; }
+.plugsent-up-pct-bad { color: #b91c1c; }
+
+.dark .plugsent-up-pct-ok { color: #4ade80; }
+.dark .plugsent-up-pct-warn { color: #fbbf24; }
+.dark .plugsent-up-pct-bad { color: #f87171; }
+
+/* ==================================================================
+ * Sites list — severity dots, inline uptime strips, risk rows
+ * ================================================================== */
+
+.plugsent-sev {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-right: 8px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #6b7280;
+    white-space: nowrap;
+}
+
+.dark .plugsent-sev {
+    color: #9ca3af;
+}
+
+.plugsent-sev i {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+}
+
+.plugsent-sev-critical i { background: #ef4444; }
+.plugsent-sev-high i { background: #f59e0b; }
+.plugsent-sev-medium i { background: #9ca3af; }
+.plugsent-sev-low i { background: #d1d5db; }
+.plugsent-sev-unknown i { background: #e5e7eb; }
+
+.dark .plugsent-sev-low i { background: #6b7280; }
+.dark .plugsent-sev-unknown i { background: #4b5563; }
+
+.plugsent-tstrip {
+    display: inline-flex;
+    gap: 1.5px;
+    height: 16px;
+    width: 110px;
+    vertical-align: middle;
+    margin-right: 8px;
+}
+
+.plugsent-tstrip .plugsent-up-bar {
+    opacity: 0.85;
+}
+
+/* Disconnected sites keep a red risk edge in the table (applied by
+ * SitesTable::recordClasses on the <tr>). */
+.plugsent-risk-row > td:first-child {
+    box-shadow: inset 3px 0 0 #ef4444;
+}
+
+/* ==================================================================
+ * Site overview — upgraded category cards (see design-mockups §2c)
+ * ================================================================== */
+
+.plugsent-badge-warn {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.dark .plugsent-badge-warn {
+    background: rgba(245, 158, 11, 0.16);
+    color: #fbbf24;
+}
+
+.plugsent-ring-sm {
+    width: 108px;
+    height: 108px;
+    flex: 0 0 auto;
+}
+
+.plugsent-ring-sm .plugsent-ring-value {
+    font-size: 26px;
+}
+
+.plugsent-ring-sm .plugsent-ring-of {
+    font-size: 10px;
+}
+
+.plugsent-ov-sec {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 0;
+}
+
+.plugsent-ov-sec-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 13px;
+}
+
+.plugsent-ov-fail-list {
+    list-style: none;
+    margin: 10px 0 0;
+    padding: 0;
+}
+
+.plugsent-ov-fail-list li {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    padding: 5px 0;
+    border-bottom: 1px solid #f0f1f4;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.dark .plugsent-ov-fail-list li {
+    border-color: #20242a;
+    color: #9ca3af;
+}
+
+.plugsent-ov-fail-list li:last-child {
+    border-bottom: none;
+}
+
+.plugsent-ov-fail-list strong {
+    display: block;
+    color: #111827;
+    font-weight: 600;
+    font-size: 12.5px;
+}
+
+.dark .plugsent-ov-fail-list strong {
+    color: #f3f4f6;
+}
+
+.plugsent-ov-fail-x {
+    color: #ef4444;
+    font-weight: 700;
+    flex: 0 0 auto;
+}
+
+.plugsent-ov-quickwin {
+    margin-top: 12px;
+    border: 1px dashed #4f46e5;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.dark .plugsent-ov-quickwin {
+    border-color: #818cf8;
+    color: #9ca3af;
+}
+
+.plugsent-ov-quickwin strong {
+    color: #111827;
+}
+
+.dark .plugsent-ov-quickwin strong {
+    color: #f3f4f6;
+}
+
+.plugsent-ov-quickwin ul {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+}
+
+.plugsent-ov-quickwin li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 4px 0;
+}
+
+.plugsent-ov-upd-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.plugsent-ov-upd-list li {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7.5px 0;
+    border-bottom: 1px solid #f0f1f4;
+    font-size: 12.5px;
+    flex-wrap: wrap;
+}
+
+.dark .plugsent-ov-upd-list li {
+    border-color: #20242a;
+}
+
+.plugsent-ov-upd-list li:last-child {
+    border-bottom: none;
+}
+
+.plugsent-ov-upd-name {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    flex: 1;
+}
+
+.plugsent-ov-upd-name strong {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.plugsent-ov-upd-ver {
+    font-size: 11.5px;
+    color: #9ca3af;
+    white-space: nowrap;
+}
+
+.plugsent-ov-upd-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.plugsent-ov-up {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.plugsent-ov-up-state {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.plugsent-ov-up-state i {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #9ca3af;
+    flex: 0 0 auto;
+}
+
+.plugsent-ov-up-state-up i {
+    background: #22c55e;
+}
+
+.plugsent-ov-up-state-down i {
+    background: #ef4444;
+}
+
+.plugsent-ov-up-bars {
+    height: 20px;
+}
+
+.plugsent-ov-up-rate {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.plugsent-ov-up-rate strong {
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.plugsent-ov-exp {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.plugsent-ov-exp > div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid #f0f1f4;
+}
+
+.dark .plugsent-ov-exp > div {
+    border-color: #20242a;
+}
+
+.plugsent-ov-exp > div:last-child {
+    border-bottom: none;
+}
+
+.plugsent-ov-exp dt {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.dark .plugsent-ov-exp dt {
+    color: #9ca3af;
+}
+
+.plugsent-ov-exp dd {
+    margin: 0;
+    font-size: 12.5px;
+    font-weight: 600;
+}
