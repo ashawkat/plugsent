@@ -25,9 +25,24 @@ channel — no firewall rules, no inbound ports, and never your WordPress admin 
 | | |
 |---|---|
 | ![Plugsent login](docs/screenshots/login.png) | ![Plugsent dashboard](docs/screenshots/dashboard.png) |
+| ![Plugsent sites](docs/screenshots/sites.png) | ![Plugsent site overview](docs/screenshots/site-overview.png) |
+| ![Plugsent activity and uptime](docs/screenshots/dashboard-activity.png) | |
 
 ## What's new
 
+- **Sep 2026 — the fleet dashboard** — the home page became a real command center:
+  - **Fleet health at a glance** — a security-score ring for the whole workspace, KPI cards
+    (sites online, pending updates, open vulnerabilities by severity, uptime) with 14-day trend
+    sparklines and week-over-week deltas from a nightly snapshot job, a **Needs attention** table
+    that ranks the worst sites with the reason each one is on the list, the 14 security checks
+    aggregated across the fleet as worst-first pass-rate bars, a fleet-wide activity feed, and
+    per-site 30-day uptime strips.
+  - **Sites list upgraded** — grouped by project, risk-ordered (disconnected first, lowest score
+    next), severity dots per vulnerability class, and inline 30-day uptime mini-strips.
+  - **Site overview rebuilt** — the Overview tab now leads with the score ring, failing checks
+    with reasons, hardening **quick wins** with point math, pending updates with `from → to`
+    versions and one-click Update all, and the uptime card with rate, strip, and SSL/domain
+    expiry.
 - **Jul 2026 → Sep 2026** — the platform grew from "inventory viewer" to a real manager:
   - **Safe updates** — every plugin/theme update runs the full pipeline: files + database restore
     point → update → site smoke test → **automatic rollback** if the site stops answering. Plus a
