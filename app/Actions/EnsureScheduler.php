@@ -21,6 +21,12 @@ class EnsureScheduler
 
     public const HEAL_ATTEMPT_KEY = 'plugsent.scheduler-heal-attempt';
 
+    /** Written by the scheduler every minute; scalar per the cache rule. */
+    public static function recordBeat(): void
+    {
+        Cache::forever(self::BEAT_KEY, now()->getTimestamp());
+    }
+
     public function __invoke(): void
     {
         if (! app()->environment('production')) {
@@ -29,7 +35,9 @@ class EnsureScheduler
 
         $beat = Cache::get(self::BEAT_KEY);
 
-        if ($beat !== null && $beat->gt(now()->subMinutes(5))) {
+        // is_int also defends against the legacy Carbon beat, which
+        // unserializes from the cache as __PHP_Incomplete_Class.
+        if (is_int($beat) && $beat > now()->subMinutes(5)->getTimestamp()) {
             return; // scheduler is alive
         }
 
@@ -39,7 +47,7 @@ class EnsureScheduler
             return;
         }
 
-        Cache::put(self::HEAL_ATTEMPT_KEY, now(), now()->addHour());
+        Cache::put(self::HEAL_ATTEMPT_KEY, now()->getTimestamp(), now()->addHour());
 
         try {
             $changed = app(Crontab::class)->ensureScheduleEntry(base_path());

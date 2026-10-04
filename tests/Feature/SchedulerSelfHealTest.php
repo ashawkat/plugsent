@@ -46,7 +46,7 @@ class SchedulerSelfHealTest extends TestCase
     public function test_self_heal_installs_the_cron_when_the_heartbeat_is_stale(): void
     {
         $this->app->detectEnvironment(fn (): string => 'production');
-        Cache::put(EnsureScheduler::BEAT_KEY, now()->subMinutes(30), now()->addHour());
+        Cache::forever(EnsureScheduler::BEAT_KEY, now()->subMinutes(30)->getTimestamp());
 
         $attempts = 0;
         $this->swap(Crontab::class, new Crontab(
@@ -69,7 +69,7 @@ class SchedulerSelfHealTest extends TestCase
     public function test_self_heal_skips_when_the_scheduler_is_alive(): void
     {
         $this->app->detectEnvironment(fn (): string => 'production');
-        Cache::put(EnsureScheduler::BEAT_KEY, now(), now()->addHour());
+        Cache::forever(EnsureScheduler::BEAT_KEY, now()->getTimestamp());
 
         $this->swap(Crontab::class, new Crontab(
             reader: fn (): string => throw new \RuntimeException('must not read'),
@@ -78,7 +78,7 @@ class SchedulerSelfHealTest extends TestCase
 
         app(EnsureScheduler::class)();
 
-        $this->assertTrue(Cache::get(EnsureScheduler::BEAT_KEY)->gt(now()->subSeconds(5)));
+        $this->assertTrue(Cache::get(EnsureScheduler::BEAT_KEY) >= now()->subSeconds(5)->getTimestamp());
     }
 
     public function test_self_heal_does_nothing_outside_production(): void

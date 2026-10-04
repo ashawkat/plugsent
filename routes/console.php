@@ -3,7 +3,6 @@
 use App\Actions\EnsureScheduler;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -29,7 +28,7 @@ Schedule::command('plugsent:refresh-inventory')->hourly()->withoutOverlapping();
 
 // The scheduler's own heartbeat: when this goes stale the app knows its
 // cron entry is missing and re-installs it on the next connector poll.
-Schedule::call(fn () => Cache::forever(EnsureScheduler::BEAT_KEY, now()))->everyMinute();
+Schedule::call(fn () => EnsureScheduler::recordBeat())->everyMinute();
 
 // Daily fleet stats for the dashboard's trend charts (one row per
 // workspace per day; re-running the same day updates in place).
