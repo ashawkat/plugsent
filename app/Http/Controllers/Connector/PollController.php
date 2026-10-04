@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Connector;
 
 use App\Actions\EnqueueSiteCommand;
+use App\Actions\EnsureScheduler;
 use App\Actions\RunDueUptimeChecks;
 use App\Http\Controllers\Controller;
 use App\Models\Site;
@@ -29,6 +30,7 @@ class PollController extends Controller
 
         $this->maybeSelfHealInventory($site);
         $this->maybeRunDueUptimeChecks();
+        app(EnsureScheduler::class)();
 
         // Long-polling is OPT-IN: connectors newer than 0.5.0 send `wait`
         // (their HTTP timeout is 45s). Older connectors abort at 15s, so
