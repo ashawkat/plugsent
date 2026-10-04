@@ -30,12 +30,28 @@ channel — no firewall rules, no inbound ports, and never your WordPress admin 
 
 ## What's new
 
-- **Oct 2026 — MCP gateway** — plug Plugsent into any AI chat client: `laravel/mcp` exposes a
-  streamable-HTTP MCP server at `/mcp/plugsent`, authenticated with a per-user bearer token
-  generated on **My account → MCP access**. Four tools — `list-sites`, `get-site-status`,
-  `list-pending-updates`, and `update-site` — resolve through the same site policies as the
-  dashboard, so a token can never out-perform its owner. See
-  [Chat with Plugsent over MCP](#chat-with-plugsent-over-mcp).
+- **Oct 2026 — autopilot** — Plugsent keeps itself running and keeps you posted:
+  - **Self-installing scheduler** — the scheduler writes a heartbeat every minute; when a
+    connector checks in and the heartbeat is stale, the app installs its own
+    `php artisan schedule:run` cron entry (production only, one repair attempt per hour,
+    logged). Fresh installs set themselves up on the first site check-in — no manual cron —
+    and `php artisan plugsent:ensure-scheduler` does the same thing by hand.
+  - **Hourly inventory refresh** — `plugsent:refresh-inventory` re-scans every connected site
+    each hour (skipping sites with a scan already outstanding), so pending-update lists stop
+    drifting stale. The connector only scans when asked — now it is asked on a schedule.
+  - **"Updates detected" emails** — when a fresh scan shows a changed set of pending updates
+    on a site, workspace owners/admins get one email per distinct set. Each site stores a
+    fingerprint of the pending-update set, so there are no repeats until something changes —
+    and nothing when a site is clean. The daily 08:00 digest remains the once-a-day summary.
+  - **Branded everything** — every email (uptime, security, updates, password, invitations)
+    shares the Plugsent-styled layout, now set in self-hosted **Google Sans**; the workspace
+    invitation moved onto it too.
+- **Oct 2026 — MCP gateway** — plug Plugsent into any chat client or coding agent:
+  `laravel/mcp` exposes a streamable-HTTP MCP server at `/mcp/plugsent`, authenticated with a
+  per-user bearer token generated on **My account → MCP access**. Five tools — `list-sites`,
+  `get-site-status`, `list-pending-updates`, `update-site`, and `rescan-inventory` — resolve
+  through the same site policies as the dashboard, so a token can never out-perform its
+  owner. See [Chat with Plugsent over MCP](#chat-with-plugsent-over-mcp).
 - **Sep 2026 — the fleet dashboard** — the home page became a real command center:
   - **Fleet health at a glance** — a security-score ring for the whole workspace, KPI cards
     (sites online, pending updates, open vulnerabilities by severity, uptime) with 14-day trend
@@ -114,8 +130,8 @@ channel — no firewall rules, no inbound ports, and never your WordPress admin 
   every read and write.
 - **One-click pairing** — generate a 15-minute pairing code from the dashboard, paste it into
   the [connector plugin](https://github.com/ashawkat/plugsent-connector), done.
-- **Live inventory** — WordPress, plugin, and theme versions with update availability, refreshed
-  on every check-in.
+- **Live inventory** — WordPress, plugin, and theme versions with update availability,
+  refreshed on every check-in and re-scanned hourly across all connected sites.
 - **Safe updates** — restore point (files + streamed database dump) → update → smoke test →
   automatic rollback. Core updates stay plain; old connectors keep the classic update path.
 - **Plugin/theme actions** — activate, deactivate, delete, theme switching, update exclusions,
@@ -124,15 +140,19 @@ channel — no firewall rules, no inbound ports, and never your WordPress admin 
   pause/resume toggle per site, domain & SSL expiry tracking, and a 30-day uptime-rate view.
 - **Security & hardening** — Wordfence vulnerability matching with per-vulnerability detail
   popups, a 14-check security score, and six connector-enforced hardening toggles per site.
-- **Emails & accounts** — branded templates for uptime/security/update-digest/password emails
-  with per-user opt-outs; a My account page (profile, password change, 2FA setup); TOTP
-  two-factor login with recovery codes; show/hide toggles on all password fields.
+- **Emails & accounts** — branded templates (Google Sans) for uptime/security/update
+  emails with per-user opt-outs; a My account page (profile, password change, 2FA setup);
+  TOTP two-factor login with recovery codes; show/hide toggles on all password fields.
+- **Self-healing scheduler** — hourly scans, digests, and feed syncs run on the Laravel
+  scheduler, and the app installs its own `schedule:run` cron entry when it notices the
+  scheduler is missing (or run `php artisan plugsent:ensure-scheduler` yourself).
 - **Connector protocol v1** — HMAC-SHA256 signed requests, timestamp tolerance, nonce replay
   protection, instant revocation, 120 req/min throttling.
 - **Revocable by design** — "Revoke access" kills the site's credentials on its next poll;
   rotation happens through the signed channel without downtime.
-- **MCP gateway** — chat clients and coding agents read site stats and queue updates through
-  `laravel/mcp` with Sanctum bearer tokens (My account → MCP access).
+- **MCP gateway** — chat clients and coding agents read site stats, trigger inventory
+  rescans, and queue updates through `laravel/mcp` with Sanctum bearer tokens
+  (My account → MCP access).
 
 ## Quickstart
 
@@ -166,11 +186,26 @@ No WordPress site at hand? Simulate one:
 php scripts/simulate-site.php http://127.0.0.1:8000 <pairing-code>
 ```
 
+### Self-hosting notes
+
+- **Scheduler** — hourly inventory rescans, the daily updates digest, the weekly
+  vulnerability-feed sync, and nightly fleet snapshots all run on the Laravel scheduler
+  (`php artisan schedule:run` every minute). You do not have to install that cron yourself:
+  once a paired site checks in, Plugsent notices a missing scheduler and installs the crontab
+  entry itself (production environments only; on hosts that block shell access from PHP it
+  logs a warning instead — run `php artisan plugsent:ensure-scheduler` over SSH there).
+- **Queues** — mail sends through your queue connection as configured; `sync` works out of
+  the box for small fleets, and a `database` queue with a worker scales further.
+- **SMTP** — configure mail (with a test send) from **Settings** in the dashboard; those
+  values override `.env`.
+- **Fonts** — emails and the dashboard render in self-hosted Google Sans (served from
+  `public/fonts`); no external font CDN calls.
+
 ### Chat with Plugsent over MCP
 
 Plugsent is an MCP server ([`laravel/mcp`](https://github.com/laravel/mcp), streamable HTTP),
-so you can ask an AI chat client things like *"how are my sites doing?"* or *"update the
-plugins on client-a.test"*.
+so you can ask a chat client or coding agent things like *"how are my sites doing?"* or
+*"update the plugins on client-a.test"*.
 
 1. In the dashboard open **My account → MCP access** and click **Generate token** — copy it,
    it is shown once (generating again rotates the token; **Revoke** kills it immediately).
@@ -190,11 +225,13 @@ plugins on client-a.test"*.
    }
    ```
 
-3. The client discovers four tools: **list-sites** (inventory with scores, uptime, and
+3. The client discovers five tools: **list-sites** (inventory with scores, uptime, and
    pending-update/vulnerability counts), **get-site-status** (full report: failing security
    checks, vulnerabilities with severity, SSL/domain expiry), **list-pending-updates**
-   (respects update exclusions), and **update-site** (queues plugin/theme/core updates with
-   the same safe-update pipeline and permissions as the dashboard).
+   (respects update exclusions), **update-site** (queues plugin/theme/core updates with the
+   same safe-update pipeline and permissions as the dashboard), and **rescan-inventory**
+   (queues a fresh inventory scan for one site or every connected site you may update —
+   results arrive on the sites' next check-in).
 
 Requests are throttled to 120/min per token, and every tool call runs through the same site
 policies the UI uses — a member-role token cannot update a lead-only site.
@@ -206,21 +243,23 @@ policies the UI uses — a member-role token cannot update a lead-only site.
 │          Plugsent control plane (this repo)  │
 │  Laravel 13 · Filament dashboard · REST API  │
 │  uptime checker · vulnerability cache · RBAC │
-│   ┌──────────────┐  ┌─────────────────────┐  │
-│   │ MCP gateway  │  │  AI layer (BYO LLM) │  │
-│   └──────────────┘  └─────────────────────┘  │
+│  scheduler · email notifications             │
+│   ┌────────────────────────────────────────┐ │
+│   │  MCP gateway (list · status · updates  │ │
+│   │  · rescan)                             │ │
+│   └────────────────────────────────────────┘ │
 └──────────▲───────────────────────▲────────────┘
            │ outbound, HMAC-signed │ MCP tools
    ┌───────┴──────────┐    ┌───────┴───────────┐
    │ connector plugin │    │ coding agents     │
-   │ (submodule)      │    │ Claude Code, etc. │
+   │ (submodule)      │    │ chat clients      │
    └──────────────────┘    └───────────────────┘
 ```
 
 - **Sites poll the server — never the reverse**, so sites behind firewalls and staging auth
   just work.
-- All business logic lives in `app/Actions`; the dashboard, API, and future MCP/mobile clients
-  are thin shells over the same actions.
+- All business logic lives in `app/Actions`; the dashboard, API, and MCP clients are thin
+  shells over the same actions.
 - The full architecture, schema, and design decisions live in [PLAN.md](./PLAN.md).
 
 ## Roadmap
@@ -233,15 +272,14 @@ policies the UI uses — a member-role token cannot update a lead-only site.
 | 3 — Safety net | ✅ shipped | ✅ uptime + incidents + email alerts · ✅ Wordfence vulnerability feed & matching |
 | 3.5 — Security | ✅ shipped | Security score, health checks, connector-enforced hardening toggles, site tabs, history audit trail, quick-switcher |
 | 3.6 — Accounts & emails | ✅ shipped | Branded email templates (uptime/security/daily updates digest/password), My account page with email preferences, TOTP 2FA with recovery codes, revealable password fields |
-| 4 — Teams & MCP | 🟡 half shipped | ✅ invitations, roles, project-level RBAC · ✅ MCP gateway (Sanctum tokens, list/status/update tools) · ⬜ public REST API |
-| 5 — AI | planned | Chat over your fleet, update risk summaries, weekly digests |
-| 6 — Mobile | planned | PWA first, then an Expo app on the same API |
-| 7 — Parity extras | ⬜ next | Performance (PageSpeed) monitoring, broken-link checking, backups, malware scanning, activity log beyond commands, alerting rules |
+| 3.7 — Autopilot | ✅ shipped | Hourly inventory refresh, fingerprint-tracked "updates detected" emails, self-installing scheduler, `rescan-inventory` MCP tool, Google Sans email branding |
+| 4 — Teams & MCP | 🟡 half shipped | ✅ invitations, roles, project-level RBAC · ✅ MCP gateway (Sanctum tokens, list/status/updates/rescan tools) · ⬜ public REST API |
+| 5 — Parity extras | 🔜 coming soon | Performance (PageSpeed) monitoring, broken-link checking, backups, malware scanning, activity log beyond commands, alerting rules |
 
 ## Development
 
 ```bash
-php artisan test        # 100 tests: protocol, signing, isolation, uptime, safe updates, MCP gateway, Plugin Check audit
+php artisan test        # 120 tests: protocol, signing, isolation, uptime, safe updates, MCP gateway, scheduler self-heal, Plugin Check audit
 vendor/bin/pint         # code style
 ```
 
