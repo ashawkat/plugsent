@@ -28,13 +28,25 @@ class WorkspaceInvitationMail extends Mailable
 
     public function content(): Content
     {
+        // Row values render unescaped in the shared template, so any
+        // user-entered text goes through e() here.
         return new Content(
-            markdown: 'mail.workspace-invitation',
+            view: 'mail.plugsent',
             with: [
-                'workspaceName' => $this->invitation->workspace->name,
-                'role' => $this->invitation->role,
-                'acceptUrl' => route('invitations.show', ['token' => $this->invitation->token]),
-                'inviterName' => $this->inviter->name,
+                'bannerLabel' => 'Workspace invitation',
+                'title' => 'Join '.$this->invitation->workspace->name.' on Plugsent',
+                'intro' => [
+                    e($this->inviterName).' invited you to join <strong>'.e($this->invitation->workspace->name).'</strong> as <strong>'.e($this->invitation->role).'</strong>.',
+                    'Plugsent is their self-hosted WordPress fleet manager — plugin, theme, and core updates safely managed from one dashboard.',
+                ],
+                'rows' => [
+                    ['label' => 'Workspace', 'value' => e($this->invitation->workspace->name)],
+                    ['label' => 'Invited by', 'value' => e($this->inviterName)],
+                    ['label' => 'Role', 'value' => e($this->invitation->role)],
+                ],
+                'buttonUrl' => route('invitations.show', ['token' => $this->invitation->token]),
+                'buttonText' => 'Accept invitation',
+                'footNote' => 'This invitation link is personal to your email address. Manage email preferences in your Plugsent profile.',
             ],
         );
     }

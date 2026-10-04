@@ -88,6 +88,21 @@ class UpdateDiscoveryTest extends TestCase
         Notification::assertNotSentTo($admin, UpdateDiscoveryNotification::class);
     }
 
+    public function test_discovery_email_renders_the_site_link_as_html(): void
+    {
+        Notification::fake();
+        [$owner, , , $site] = $this->workspaceWithSite();
+
+        $this->scanSite($site, [$this->pluginUpdate('akismet', 'Akismet', '5.2', '5.3')]);
+
+        $notification = Notification::sent($owner, UpdateDiscoveryNotification::class)->first();
+        $html = $notification->toMail($owner)->render();
+
+        $this->assertStringContainsString('<a href=', $html);
+        $this->assertStringNotContainsString('&lt;a href=', $html);
+        $this->assertStringContainsString('Google Sans', $html);
+    }
+
     /**
      * Run a connector-style inventory result through the processing action.
      *
