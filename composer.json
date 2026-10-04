@@ -19,6 +19,8 @@
         "chillerlan/php-qrcode": "^5.0",
         "filament/filament": "^5.7",
         "laravel/framework": "^13.17",
+        "laravel/mcp": "^1.0",
+        "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0",
         "plugsent/connector-signing": "@dev",
         "pragmarx/google2fa": "^9.1"

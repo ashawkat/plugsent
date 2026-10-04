@@ -30,6 +30,12 @@ channel — no firewall rules, no inbound ports, and never your WordPress admin 
 
 ## What's new
 
+- **Oct 2026 — MCP gateway** — plug Plugsent into any AI chat client: `laravel/mcp` exposes a
+  streamable-HTTP MCP server at `/mcp/plugsent`, authenticated with a per-user bearer token
+  generated on **My account → MCP access**. Four tools — `list-sites`, `get-site-status`,
+  `list-pending-updates`, and `update-site` — resolve through the same site policies as the
+  dashboard, so a token can never out-perform its owner. See
+  [Chat with Plugsent over MCP](#chat-with-plugsent-over-mcp).
 - **Sep 2026 — the fleet dashboard** — the home page became a real command center:
   - **Fleet health at a glance** — a security-score ring for the whole workspace, KPI cards
     (sites online, pending updates, open vulnerabilities by severity, uptime) with 14-day trend
@@ -125,6 +131,8 @@ channel — no firewall rules, no inbound ports, and never your WordPress admin 
   protection, instant revocation, 120 req/min throttling.
 - **Revocable by design** — "Revoke access" kills the site's credentials on its next poll;
   rotation happens through the signed channel without downtime.
+- **MCP gateway** — chat clients and coding agents read site stats and queue updates through
+  `laravel/mcp` with Sanctum bearer tokens (My account → MCP access).
 
 ## Quickstart
 
@@ -157,6 +165,39 @@ No WordPress site at hand? Simulate one:
 ```bash
 php scripts/simulate-site.php http://127.0.0.1:8000 <pairing-code>
 ```
+
+### Chat with Plugsent over MCP
+
+Plugsent is an MCP server ([`laravel/mcp`](https://github.com/laravel/mcp), streamable HTTP),
+so you can ask an AI chat client things like *"how are my sites doing?"* or *"update the
+plugins on client-a.test"*.
+
+1. In the dashboard open **My account → MCP access** and click **Generate token** — copy it,
+   it is shown once (generating again rotates the token; **Revoke** kills it immediately).
+2. Point your client at the URL shown on that page (by default
+   `http://127.0.0.1:8000/mcp/plugsent`) and send the token as a bearer header:
+
+   ```json
+   {
+     "mcpServers": {
+       "plugsent": {
+         "url": "http://127.0.0.1:8000/mcp/plugsent",
+         "headers": {
+           "Authorization": "Bearer <your-token>"
+         }
+       }
+     }
+   }
+   ```
+
+3. The client discovers four tools: **list-sites** (inventory with scores, uptime, and
+   pending-update/vulnerability counts), **get-site-status** (full report: failing security
+   checks, vulnerabilities with severity, SSL/domain expiry), **list-pending-updates**
+   (respects update exclusions), and **update-site** (queues plugin/theme/core updates with
+   the same safe-update pipeline and permissions as the dashboard).
+
+Requests are throttled to 120/min per token, and every tool call runs through the same site
+policies the UI uses — a member-role token cannot update a lead-only site.
 
 ## Architecture
 
@@ -192,7 +233,7 @@ php scripts/simulate-site.php http://127.0.0.1:8000 <pairing-code>
 | 3 — Safety net | ✅ shipped | ✅ uptime + incidents + email alerts · ✅ Wordfence vulnerability feed & matching |
 | 3.5 — Security | ✅ shipped | Security score, health checks, connector-enforced hardening toggles, site tabs, history audit trail, quick-switcher |
 | 3.6 — Accounts & emails | ✅ shipped | Branded email templates (uptime/security/daily updates digest/password), My account page with email preferences, TOTP 2FA with recovery codes, revealable password fields |
-| 4 — Teams & MCP | 🟡 half shipped | ✅ invitations, roles, project-level RBAC · ⬜ MCP gateway, public API |
+| 4 — Teams & MCP | 🟡 half shipped | ✅ invitations, roles, project-level RBAC · ✅ MCP gateway (Sanctum tokens, list/status/update tools) · ⬜ public REST API |
 | 5 — AI | planned | Chat over your fleet, update risk summaries, weekly digests |
 | 6 — Mobile | planned | PWA first, then an Expo app on the same API |
 | 7 — Parity extras | ⬜ next | Performance (PageSpeed) monitoring, broken-link checking, backups, malware scanning, activity log beyond commands, alerting rules |
@@ -200,7 +241,7 @@ php scripts/simulate-site.php http://127.0.0.1:8000 <pairing-code>
 ## Development
 
 ```bash
-php artisan test        # 81 tests: protocol, signing, isolation, uptime, safe updates, Plugin Check audit
+php artisan test        # 100 tests: protocol, signing, isolation, uptime, safe updates, MCP gateway, Plugin Check audit
 vendor/bin/pint         # code style
 ```
 

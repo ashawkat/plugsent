@@ -2,17 +2,19 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Auth\MultiFactor\TotpAuthentication;
+use App\Notifications\PasswordChangedNotification;
 use BackedEnum;
+use chillerlan\QRCode\QRCode;
+use chillerlan\QRCode\QROptions;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
-use Illuminate\Support\Facades\Hash;
 use PragmaRX\Google2FA\Google2FA;
 use Throwable;
 
 class Profile extends Page
 {
-
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserCircle;
 
     protected static ?int $navigationSort = 6;
@@ -46,6 +48,9 @@ class Profile extends Page
     public ?string $pendingSecret = null;
 
     public ?array $recoveryCodes = null;
+
+    // MCP access (plain text token, shown once right after generating)
+    public ?string $mcpToken = null;
 
     public function mount(): void
     {
@@ -91,7 +96,7 @@ class Profile extends Page
         ]);
 
         $user->forceFill(['password' => $this->new_password])->save();
-        $user->notify(new \App\Notifications\PasswordChangedNotification());
+        $user->notify(new PasswordChangedNotification);
 
         // The password change invalidates other sessions.
         auth()->logoutOtherDevices($this->new_password);
@@ -141,9 +146,9 @@ class Profile extends Page
         try {
             // chillerlan v5 returns a base64 data URI for SVG output,
             // rendered by the view in an <img> tag.
-            return (new \chillerlan\QRCode\QRCode(new \chillerlan\QRCode\QROptions([
-                'outputType' => \chillerlan\QRCode\QRCode::OUTPUT_MARKUP_SVG,
-                'eccLevel' => \chillerlan\QRCode\QRCode::ECC_L,
+            return (new QRCode(new QROptions([
+                'outputType' => QRCode::OUTPUT_MARKUP_SVG,
+                'eccLevel' => QRCode::ECC_L,
             ])))->render($uri);
         } catch (Throwable) {
             return null;
@@ -165,7 +170,7 @@ class Profile extends Page
         }
 
         $user = auth()->user();
-        $codes = app(\App\Filament\Auth\MultiFactor\TotpAuthentication::class)->generateRecoveryCodes();
+        $codes = app(TotpAuthentication::class)->generateRecoveryCodes();
 
         $user->forceFill([
             'two_factor_secret' => $this->pendingSecret,
@@ -213,4 +218,40 @@ class Profile extends Page
         Notification::make()->title('New recovery codes generated')->body('Old codes no longer work.')->success()->send();
     }
 
+    // ---------------- MCP access ----------------
+
+    public function mcpServerUrl(): string
+    {
+        return rtrim(config('app.url'), '/').'/mcp/plugsent';
+    }
+
+    public function hasMcpToken(): bool
+    {
+        return auth()->user()->tokens()->exists();
+    }
+
+    public function generateMcpToken(): void
+    {
+        // One active MCP token per user: generating replaces the previous
+        // one, so a lost token can always be rotated from here.
+        auth()->user()->tokens()->delete();
+
+        $this->mcpToken = auth()->user()
+            ->createToken('MCP access', ['mcp'])
+            ->plainTextToken;
+
+        Notification::make()
+            ->title('MCP access token created')
+            ->body('Copy it now — it is shown only once.')
+            ->success()
+            ->send();
+    }
+
+    public function revokeMcpToken(): void
+    {
+        auth()->user()->tokens()->delete();
+        $this->mcpToken = null;
+
+        Notification::make()->title('MCP access revoked')->success()->send();
+    }
 }

@@ -90,6 +90,41 @@
         </div>
     </div>
 
+    {{-- MCP access --}}
+    <div class="plugsent-category">
+        <div class="plugsent-category-head">
+            <h2>MCP access</h2>
+            @if($this->hasMcpToken())
+                <span class="plugsent-state plugsent-state-up">active</span>
+            @else
+                <span class="plugsent-state plugsent-state-inactive">no token</span>
+            @endif
+        </div>
+        <div style="padding: 14px 18px 18px;">
+            <p class="plugsent-note" style="margin-bottom: 12px;">
+                Connect an AI chat client (ZCode, Claude, Cursor…) to Plugsent over the Model Context Protocol.
+                Point the client at the URL below with a bearer token — it can list your sites, read their stats,
+                and queue plugin/theme/core updates with exactly the permissions your account has.
+            </p>
+            <p style="margin:0 0 12px;"><code class="plugsent-secret">{{ $this->mcpServerUrl() }}</code></p>
+
+            @if($mcpToken)
+                <p class="plugsent-note"><strong>Store this token somewhere safe — it is shown only once.</strong></p>
+                <p style="margin:0 0 12px;"><code class="plugsent-secret">{{ $mcpToken }}</code></p>
+            @endif
+
+            <button type="button" class="plugsent-btn plugsent-btn-primary" wire:click="generateMcpToken">
+                {{ $this->hasMcpToken() ? 'Regenerate token' : 'Generate token' }}
+            </button>
+            @if($this->hasMcpToken())
+                <button type="button" class="plugsent-btn plugsent-btn-icon-danger" wire:click="revokeMcpToken"
+                        wire:confirm="Revoke MCP access? Any chat client using this token will stop working.">
+                    Revoke
+                </button>
+            @endif
+        </div>
+    </div>
+
     {{-- Two-factor authentication --}}
     <div class="plugsent-category">
         <div class="plugsent-category-head">
