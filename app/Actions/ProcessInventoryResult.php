@@ -56,6 +56,10 @@ class ProcessInventoryResult
         // vulnerability feed right away.
         app(MatchInventoryVulnerabilities::class)($site);
 
+        // New snapshot, new chance for updates to appear (or disappear) —
+        // email workspace admins about a changed pending-update set.
+        app(NotifyAvailableUpdates::class)($site);
+
         return $count;
     }
 }

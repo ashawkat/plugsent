@@ -3,8 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Models\InventoryItem;
-use App\Models\Workspace;
 use App\Models\User;
+use App\Models\Workspace;
 use App\Notifications\UpdatesAvailableNotification;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
@@ -50,8 +50,10 @@ class SendUpdatesDigest extends Command
 
     private function notifyRecipients(Workspace $workspace, array $siteDigest): int
     {
-        $users = User::query()
-            ->whereHas('workspaces', fn ($query) => $query->whereKey($workspace->getKey())->wherePivotIn('role', ['owner', 'admin']))
+        // Query from the workspace side: wherePivotIn inside whereHas
+        // compiles to a bogus constraint and matches nobody.
+        $users = $workspace->users()
+            ->wherePivotIn('role', ['owner', 'admin'])
             ->get()
             ->filter(fn (User $user) => $user->wantsEmail('updates'));
 

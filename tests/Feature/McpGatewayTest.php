@@ -7,6 +7,7 @@ use App\Mcp\Servers\PlugsentServer;
 use App\Mcp\Tools\GetSiteStatus;
 use App\Mcp\Tools\ListPendingUpdates;
 use App\Mcp\Tools\ListSites;
+use App\Mcp\Tools\RescanInventory;
 use App\Mcp\Tools\UpdateSite;
 use App\Models\InventoryItem;
 use App\Models\Project;
@@ -40,13 +41,14 @@ class McpGatewayTest extends TestCase
             ->assertSee('plugsent');
     }
 
-    public function test_server_exposes_the_four_plugsent_tools(): void
+    public function test_server_exposes_the_five_plugsent_tools(): void
     {
         PlugsentServer::tools()->assertRegistered([
             ListSites::class,
             GetSiteStatus::class,
             ListPendingUpdates::class,
             UpdateSite::class,
+            RescanInventory::class,
         ]);
     }
 
@@ -206,6 +208,76 @@ class McpGatewayTest extends TestCase
         $this->assertSame(0, SiteCommand::query()->count());
     }
 
+    public function test_rescan_inventory_queues_connected_sites_the_caller_may_update(): void
+    {
+        [$owner, , $workspace, $visibleSite, $hiddenSite] = $this->workspaceWithVisibleAndHiddenSites();
+        $offline = $this->makeSite($workspace, $visibleSite->project, 'disconnected');
+
+        PlugsentServer::actingAs($owner)
+            ->tool(RescanInventory::class)
+            ->assertSee('Queued 2 inventory rescans: ['.$visibleSite->getKey().'] '.$visibleSite->name.', ['.$hiddenSite->getKey().'] '.$hiddenSite->name)
+            ->assertDontSee($offline->name);
+
+        $commands = SiteCommand::query()->where('type', 'inventory.get')->get();
+        $this->assertCount(2, $commands);
+        $this->assertSame(SiteCommand::STATUS_PENDING, $commands->first()->status);
+    }
+
+    public function test_rescan_inventory_skips_sites_beyond_update_permission(): void
+    {
+        [$owner, $member] = $this->workspaceWithVisibleAndHiddenSites();
+
+        // The member can see the open project's site but may not update it,
+        // and cannot see the restricted project's site at all.
+        PlugsentServer::actingAs($member)
+            ->tool(RescanInventory::class)
+            ->assertSee('Nothing to rescan: no connected sites are available to you right now.');
+
+        $this->assertSame(0, SiteCommand::query()->count());
+    }
+
+    public function test_rescan_inventory_with_site_id_targets_only_that_site(): void
+    {
+        [$owner, , $workspace, $visibleSite] = $this->workspaceWithVisibleAndHiddenSites();
+        $other = $this->makeSite($workspace, $visibleSite->project);
+
+        PlugsentServer::actingAs($owner)
+            ->tool(RescanInventory::class, ['site_id' => $other->id])
+            ->assertSee('Queued 1 inventory rescan: ['.$other->getKey().'] '.$other->name);
+
+        $command = SiteCommand::query()->sole();
+        $this->assertSame('inventory.get', $command->type);
+        $this->assertSame($other->id, $command->site_id);
+    }
+
+    public function test_rescan_inventory_rejects_invisible_sites(): void
+    {
+        [$owner, $member, $workspace, $visibleSite, $hiddenSite] = $this->workspaceWithVisibleAndHiddenSites();
+
+        PlugsentServer::actingAs($member)
+            ->tool(RescanInventory::class, ['site_id' => $hiddenSite->id])
+            ->assertSee('No site with that id is visible to this account.');
+
+        // A member can see an open project's site but may not update it.
+        PlugsentServer::actingAs($member)
+            ->tool(RescanInventory::class, ['site_id' => $visibleSite->id])
+            ->assertSee('You do not have permission to rescan this site.');
+
+        $this->assertSame(0, SiteCommand::query()->count());
+    }
+
+    public function test_rescan_inventory_reports_offline_single_site(): void
+    {
+        [$owner, , $workspace, $visibleSite] = $this->workspaceWithVisibleAndHiddenSites();
+        $offline = $this->makeSite($workspace, $visibleSite->project, 'disconnected');
+
+        PlugsentServer::actingAs($owner)
+            ->tool(RescanInventory::class, ['site_id' => $offline->id])
+            ->assertSee($offline->name.' is not connected right now');
+
+        $this->assertSame(0, SiteCommand::query()->count());
+    }
+
     public function test_list_pending_updates_marks_excluded_items(): void
     {
         $owner = User::factory()->create();
@@ -270,6 +342,17 @@ class McpGatewayTest extends TestCase
         ]);
 
         return [$owner, $member, $workspace, $visibleSite, $hiddenSite];
+    }
+
+    private function makeSite(Workspace $workspace, Project $project, string $status = 'connected'): Site
+    {
+        return Site::create([
+            'workspace_id' => $workspace->id,
+            'project_id' => $project->id,
+            'name' => 'extra-site.test',
+            'url' => 'https://extra-site.test',
+            'status' => $status,
+        ]);
     }
 
     /**

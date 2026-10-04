@@ -20,6 +20,11 @@ Schedule::command('vuln:sync')->weeklyOn(1, '3:00');
 // The once-a-day "updates available" digest, first thing in the morning.
 Schedule::command('plugsent:updates-digest')->dailyAt('08:00');
 
+// Hourly inventory rescan for every connected site: without it the
+// pending-update lists (and the update-discovery emails they trigger)
+// silently drift stale — the connector only scans when asked.
+Schedule::command('plugsent:refresh-inventory')->hourly()->withoutOverlapping();
+
 // Daily fleet stats for the dashboard's trend charts (one row per
 // workspace per day; re-running the same day updates in place).
 Schedule::command('plugsent:snapshot-fleet')->dailyAt('00:05');
