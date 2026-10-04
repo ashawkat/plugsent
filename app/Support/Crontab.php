@@ -18,7 +18,7 @@ class Crontab
     ) {
         $this->reader ??= fn (): string => (string) (shell_exec('crontab -l 2>/dev/null') ?? '');
         $this->writer ??= function (string $content): void {
-            $process = proc_open('crontab -', [[0 => ['pipe', 'r']], [1 => ['pipe', 'w']], [2 => ['pipe', 'w']]], $pipes);
+            $process = proc_open('crontab -', [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']], $pipes);
 
             if (! is_resource($process)) {
                 throw new RuntimeException('Unable to open crontab for writing.');
