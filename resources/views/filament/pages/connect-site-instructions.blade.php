@@ -1,13 +1,16 @@
 @php
     $serverUrl = rtrim(config('app.url') ?? url('/'), '/');
+    $release = \App\Support\ConnectorRelease::latest();
 @endphp
 
 <div class="fi-form space-y-4">
     <div>
         <h3 class="text-sm font-semibold">1. Install the plugin</h3>
         <p class="text-sm opacity-75">
-            On your WordPress site, install and activate the <strong>Plugsent Connector</strong> plugin,
-            then open <strong>Settings → Plugsent Connector</strong>.
+            On your WordPress site, install and activate the <strong>Plugsent Connector</strong> plugin —
+            <a href="{{ route('connector.download') }}" class="fi-link fi-link-size-md">Download connector {{ filled($release['tag'] ?? null) ? $release['tag'] : '' }} (.zip)</a>
+            (upload via <strong>Plugins → Add New → Upload Plugin</strong>) — then open
+            <strong>Settings → Plugsent Connector</strong>.
         </p>
     </div>
 
