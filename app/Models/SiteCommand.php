@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['site_id', 'batch_id', 'type', 'payload', 'status', 'result', 'dispatched_at', 'completed_at', 'expires_at'])]
+#[Fillable(['site_id', 'batch_id', 'type', 'payload', 'status', 'result', 'dispatched_at', 'completed_at', 'expires_at', 'source', 'actor'])]
 class SiteCommand extends Model
 {
     public const STATUS_PENDING = 'pending';

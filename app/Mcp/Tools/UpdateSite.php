@@ -3,6 +3,7 @@
 namespace App\Mcp\Tools;
 
 use App\Actions\EnqueueSiteCommand;
+use App\Mcp\Support\TokenAccess;
 use App\Mcp\Support\UserSites;
 use App\Models\InventoryItem;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -38,6 +39,10 @@ class UpdateSite extends Tool
 
     public function handle(Request $request): Response
     {
+        if (! TokenAccess::canWrite($request)) {
+            return Response::text('This token is read-only — it can list sites, statuses, and pending updates, but cannot queue updates. Generate a token with write access from My account → MCP access.');
+        }
+
         $site = app(UserSites::class)($request->user())
             ->firstWhere('id', (int) $request->get('site_id'));
 
@@ -100,6 +105,8 @@ class UpdateSite extends Tool
                 $safe ? 'update.safe' : 'update.run',
                 ['context' => $item->context, 'slug' => $item->slug],
                 $batchId,
+                'mcp',
+                TokenAccess::actor($request),
             );
         }
 

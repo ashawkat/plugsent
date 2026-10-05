@@ -52,6 +52,8 @@ class Profile extends Page
     // MCP access (plain text token, shown once right after generating)
     public ?string $mcpToken = null;
 
+    public bool $mcpReadOnly = true;
+
     public function mount(): void
     {
         $user = auth()->user();
@@ -230,19 +232,43 @@ class Profile extends Page
         return auth()->user()->tokens()->exists();
     }
 
+    /**
+     * Human label for the active token's scope, shown next to the
+     * read-only toggle so the user knows what their client currently has.
+     */
+    public function tokenScope(): string
+    {
+        // Read from the stored token — the profile page has no bearer
+        // context, so currentAccessToken() is always null here.
+        $token = auth()->user()->tokens()->first();
+        $abilities = (array) ($token?->abilities ?? []);
+
+        return in_array('mcp:write', $abilities) || in_array('mcp', $abilities)
+            ? 'full access'
+            : 'read-only';
+    }
+
     public function generateMcpToken(): void
     {
         // One active MCP token per user: generating replaces the previous
-        // one, so a lost token can always be rotated from here.
+        // one, so a lost token can always be rotated from here. Read-only
+        // is the default — write access is an explicit opt-in, so an
+        // agent can never update a fleet by accident.
         auth()->user()->tokens()->delete();
 
+        $abilities = $this->mcpReadOnly
+            ? ['mcp:read']
+            : ['mcp:read', 'mcp:write'];
+
         $this->mcpToken = auth()->user()
-            ->createToken('MCP access', ['mcp'])
+            ->createToken('MCP access', $abilities)
             ->plainTextToken;
 
         Notification::make()
             ->title('MCP access token created')
-            ->body('Copy it now — it is shown only once.')
+            ->body($this->mcpReadOnly
+                ? 'Read-only token created — it can inspect sites but cannot queue updates. Copy it now, it is shown only once.'
+                : 'Full-access token created — it can queue updates. Copy it now, it is shown only once.')
             ->success()
             ->send();
     }

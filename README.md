@@ -234,6 +234,13 @@ so you can ask a chat client or coding agent things like *"how are my sites doin
    (queues a fresh inventory scan for one site or every connected site you may update —
    results arrive on the sites' next check-in).
 
+**Token scopes & the audit trail.** New tokens are **read-only by default** — they can
+inspect sites and pending updates but `update-site` and `rescan-inventory` refuse them.
+Untick "Read-only token" when generating to grant write access. Every command an agent
+queues is stamped **via MCP** with your account and token name, shown on the site's
+History tab — so a client-fleet trail shows exactly which agent triggered which update.
+Legacy tokens (pre-scope) keep full access; regenerate to switch.
+
 Requests are throttled to 120/min per token, and every tool call runs through the same site
 policies the UI uses — a member-role token cannot update a lead-only site.
 

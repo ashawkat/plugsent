@@ -768,7 +768,12 @@
                                     <div>{{ $cmd->created_at->format('M j, H:i') }}</div>
                                     <div class="plugsent-item-slug">{{ $cmd->created_at->diffForHumans() }}</div>
                                 </td>
-                                <td>{{ $this->processSubject($cmd) }}</td>
+                                <td>
+                                    {{ $this->processSubject($cmd) }}
+                                    @if($cmd->source === 'mcp')
+                                        <div class="plugsent-item-slug" title="Queued by {{ $cmd->actor }} over MCP">via MCP · {{ $cmd->actor }}</div>
+                                    @endif
+                                </td>
                                 <td>
                                     @if($cmd->status === \App\Models\SiteCommand::STATUS_COMPLETED)
                                         <span class="plugsent-state plugsent-state-up">completed</span>

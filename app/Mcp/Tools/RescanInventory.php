@@ -3,6 +3,7 @@
 namespace App\Mcp\Tools;
 
 use App\Actions\EnqueueSiteCommand;
+use App\Mcp\Support\TokenAccess;
 use App\Mcp\Support\UserSites;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -29,6 +30,10 @@ class RescanInventory extends Tool
 
     public function handle(Request $request): Response
     {
+        if (! TokenAccess::canWrite($request)) {
+            return Response::text('This token is read-only — it can list sites, statuses, and pending updates, but cannot trigger rescans. Generate a token with write access from My account → MCP access.');
+        }
+
         $user = $request->user();
         $sites = app(UserSites::class)($user);
         $single = $request->get('site_id') !== null;
@@ -56,7 +61,7 @@ class RescanInventory extends Tool
                 continue;
             }
 
-            app(EnqueueSiteCommand::class)($site, 'inventory.get');
+            app(EnqueueSiteCommand::class)($site, 'inventory.get', null, null, 'mcp', TokenAccess::actor($request));
 
             $queued->push($site);
         }

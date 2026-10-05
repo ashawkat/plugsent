@@ -104,9 +104,22 @@
             <p class="plugsent-note" style="margin-bottom: 12px;">
                 Connect an AI chat client (ZCode, Claude, Cursor…) to Plugsent over the Model Context Protocol.
                 Point the client at the URL below with a bearer token — it can list your sites, read their stats,
-                and queue plugin/theme/core updates with exactly the permissions your account has.
+                and — with write access — queue plugin/theme/core updates with exactly the permissions your
+                account has. Every command an agent queues is stamped "via MCP" with your account and token
+                name in the site's activity history.
             </p>
             <p style="margin:0 0 12px;"><code class="plugsent-secret">{{ $this->mcpServerUrl() }}</code></p>
+
+            <label style="display:flex; gap:8px; align-items:center; margin:0 0 12px; font-size:13px; color:#334155;">
+                <input type="checkbox" wire:model.live="mcpReadOnly" />
+                <span>
+                    <strong>Read-only token</strong> — can inspect sites and pending updates but cannot
+                    queue updates or rescans. Recommended; untick to let the agent run updates.
+                    @if($this->hasMcpToken())
+                        <em>(current token: {{ $this->tokenScope() }} — regenerate to change)</em>
+                    @endif
+                </span>
+            </label>
 
             @if($mcpToken)
                 <p class="plugsent-note"><strong>Store this token somewhere safe — it is shown only once.</strong></p>

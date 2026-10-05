@@ -17,6 +17,7 @@ use App\Models\UpdateExclusion;
 use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Contracts\HasAbilities;
 use Tests\TestCase;
 
 class McpGatewayTest extends TestCase
@@ -56,11 +57,11 @@ class McpGatewayTest extends TestCase
     {
         [$owner, $member, $workspace, $visibleSite, $hiddenSite] = $this->workspaceWithVisibleAndHiddenSites();
 
-        PlugsentServer::actingAs($owner)->tool(ListSites::class)
+        PlugsentServer::actingAs($this->withAbilities($owner, ['mcp:read', 'mcp:write']))->tool(ListSites::class)
             ->assertSee($visibleSite->url)
             ->assertSee($hiddenSite->url);
 
-        PlugsentServer::actingAs($member)->tool(ListSites::class)
+        PlugsentServer::actingAs($this->withAbilities($member, ['mcp:read', 'mcp:write']))->tool(ListSites::class)
             ->assertSee($visibleSite->url)
             ->assertDontSee($hiddenSite->url);
     }
@@ -92,7 +93,7 @@ class McpGatewayTest extends TestCase
             'active' => true,
         ]);
 
-        PlugsentServer::actingAs($owner)->tool(GetSiteStatus::class, ['site_id' => $site->id])
+        PlugsentServer::actingAs($this->withAbilities($owner, ['mcp:read', 'mcp:write']))->tool(GetSiteStatus::class, ['site_id' => $site->id])
             ->assertSee('Security score: 50/100')
             ->assertSee('XML-RPC disabled')
             ->assertSee('1 plugin');
@@ -102,12 +103,12 @@ class McpGatewayTest extends TestCase
     {
         [$owner, , , , $hiddenSite] = $this->workspaceWithVisibleAndHiddenSites();
 
-        PlugsentServer::actingAs($owner)->tool(ListSites::class)->assertSee($hiddenSite->url);
+        PlugsentServer::actingAs($this->withAbilities($owner, ['mcp:read', 'mcp:write']))->tool(ListSites::class)->assertSee($hiddenSite->url);
 
         $member = User::factory()->create();
         $hiddenSite->workspace->users()->attach($member, ['role' => 'member']);
 
-        PlugsentServer::actingAs($member)->tool(GetSiteStatus::class, ['site_id' => $hiddenSite->id])
+        PlugsentServer::actingAs($this->withAbilities($member, ['mcp:read', 'mcp:write']))->tool(GetSiteStatus::class, ['site_id' => $hiddenSite->id])
             ->assertSee('No site with that id is visible to this account.');
     }
 
@@ -137,7 +138,7 @@ class McpGatewayTest extends TestCase
         ]);
         UpdateExclusion::create(['site_id' => $site->id, 'context' => 'plugin', 'slug' => 'hello-dolly']);
 
-        PlugsentServer::actingAs($owner)
+        PlugsentServer::actingAs($this->withAbilities($owner, ['mcp:read', 'mcp:write']))
             ->tool(UpdateSite::class, ['site_id' => $site->id, 'context' => 'plugin'])
             ->assertSee('Queued 1 plugin update(s) for client-a.test')
             ->assertSee('restore point, smoke test, and automatic rollback');
@@ -169,7 +170,7 @@ class McpGatewayTest extends TestCase
             'update_version' => '6.8', 'active' => true,
         ]);
 
-        PlugsentServer::actingAs($owner)
+        PlugsentServer::actingAs($this->withAbilities($owner, ['mcp:read', 'mcp:write']))
             ->tool(UpdateSite::class, ['site_id' => $site->id, 'context' => 'core'])
             ->assertSee('Queued 1 core update(s)');
 
@@ -201,7 +202,7 @@ class McpGatewayTest extends TestCase
         $member = User::factory()->create();
         $workspace->users()->attach($member, ['role' => 'member']);
 
-        PlugsentServer::actingAs($member)
+        PlugsentServer::actingAs($this->withAbilities($member, ['mcp:read', 'mcp:write']))
             ->tool(UpdateSite::class, ['site_id' => $site->id, 'context' => 'plugin'])
             ->assertSee('You do not have permission to update this site.');
 
@@ -213,7 +214,7 @@ class McpGatewayTest extends TestCase
         [$owner, , $workspace, $visibleSite, $hiddenSite] = $this->workspaceWithVisibleAndHiddenSites();
         $offline = $this->makeSite($workspace, $visibleSite->project, 'disconnected');
 
-        PlugsentServer::actingAs($owner)
+        PlugsentServer::actingAs($this->withAbilities($owner, ['mcp:read', 'mcp:write']))
             ->tool(RescanInventory::class)
             ->assertSee('Queued 2 inventory rescans: ['.$visibleSite->getKey().'] '.$visibleSite->name.', ['.$hiddenSite->getKey().'] '.$hiddenSite->name)
             ->assertDontSee($offline->name);
@@ -229,7 +230,7 @@ class McpGatewayTest extends TestCase
 
         // The member can see the open project's site but may not update it,
         // and cannot see the restricted project's site at all.
-        PlugsentServer::actingAs($member)
+        PlugsentServer::actingAs($this->withAbilities($member, ['mcp:read', 'mcp:write']))
             ->tool(RescanInventory::class)
             ->assertSee('Nothing to rescan: no connected sites are available to you right now.');
 
@@ -241,7 +242,7 @@ class McpGatewayTest extends TestCase
         [$owner, , $workspace, $visibleSite] = $this->workspaceWithVisibleAndHiddenSites();
         $other = $this->makeSite($workspace, $visibleSite->project);
 
-        PlugsentServer::actingAs($owner)
+        PlugsentServer::actingAs($this->withAbilities($owner, ['mcp:read', 'mcp:write']))
             ->tool(RescanInventory::class, ['site_id' => $other->id])
             ->assertSee('Queued 1 inventory rescan: ['.$other->getKey().'] '.$other->name);
 
@@ -254,12 +255,12 @@ class McpGatewayTest extends TestCase
     {
         [$owner, $member, $workspace, $visibleSite, $hiddenSite] = $this->workspaceWithVisibleAndHiddenSites();
 
-        PlugsentServer::actingAs($member)
+        PlugsentServer::actingAs($this->withAbilities($member, ['mcp:read', 'mcp:write']))
             ->tool(RescanInventory::class, ['site_id' => $hiddenSite->id])
             ->assertSee('No site with that id is visible to this account.');
 
         // A member can see an open project's site but may not update it.
-        PlugsentServer::actingAs($member)
+        PlugsentServer::actingAs($this->withAbilities($member, ['mcp:read', 'mcp:write']))
             ->tool(RescanInventory::class, ['site_id' => $visibleSite->id])
             ->assertSee('You do not have permission to rescan this site.');
 
@@ -271,11 +272,63 @@ class McpGatewayTest extends TestCase
         [$owner, , $workspace, $visibleSite] = $this->workspaceWithVisibleAndHiddenSites();
         $offline = $this->makeSite($workspace, $visibleSite->project, 'disconnected');
 
-        PlugsentServer::actingAs($owner)
+        PlugsentServer::actingAs($this->withAbilities($owner, ['mcp:read', 'mcp:write']))
             ->tool(RescanInventory::class, ['site_id' => $offline->id])
             ->assertSee($offline->name.' is not connected right now');
 
         $this->assertSame(0, SiteCommand::query()->count());
+    }
+
+    public function test_read_only_token_cannot_queue_updates_or_rescans(): void
+    {
+        [$owner, , , $visibleSite] = $this->workspaceWithVisibleAndHiddenSites();
+        InventoryItem::create([
+            'site_id' => $visibleSite->id, 'context' => 'plugin', 'slug' => 'akismet',
+            'name' => 'Akismet', 'version' => '5.2', 'update_available' => true,
+            'update_version' => '5.3', 'active' => true,
+        ]);
+
+        PlugsentServer::actingAs($this->withAbilities($owner, ['mcp:read']))
+            ->tool(UpdateSite::class, ['site_id' => $visibleSite->id, 'context' => 'plugin'])
+            ->assertSee('This token is read-only');
+
+        PlugsentServer::actingAs($this->withAbilities($owner, ['mcp:read']))
+            ->tool(RescanInventory::class, ['site_id' => $visibleSite->id])
+            ->assertSee('This token is read-only');
+
+        $this->assertSame(0, SiteCommand::query()->count());
+    }
+
+    public function test_read_only_token_can_still_read_pending_updates(): void
+    {
+        [$owner, , , $visibleSite] = $this->workspaceWithVisibleAndHiddenSites();
+        InventoryItem::create([
+            'site_id' => $visibleSite->id, 'context' => 'plugin', 'slug' => 'akismet',
+            'name' => 'Akismet', 'version' => '5.2', 'update_available' => true,
+            'update_version' => '5.3', 'active' => true,
+        ]);
+
+        PlugsentServer::actingAs($this->withAbilities($owner, ['mcp:read']))
+            ->tool(ListPendingUpdates::class)
+            ->assertSee('[plugin] Akismet 5.2 → 5.3');
+    }
+
+    public function test_mcp_commands_carry_the_source_and_actor_for_the_audit_trail(): void
+    {
+        [$owner, , , $visibleSite] = $this->workspaceWithVisibleAndHiddenSites();
+        InventoryItem::create([
+            'site_id' => $visibleSite->id, 'context' => 'plugin', 'slug' => 'akismet',
+            'name' => 'Akismet', 'version' => '5.2', 'update_available' => true,
+            'update_version' => '5.3', 'active' => true,
+        ]);
+
+        PlugsentServer::actingAs($this->withAbilities($owner, ['mcp:read', 'mcp:write']))
+            ->tool(UpdateSite::class, ['site_id' => $visibleSite->id, 'context' => 'plugin'])
+            ->assertSee('Queued 1 plugin update(s)');
+
+        $command = SiteCommand::query()->sole();
+        $this->assertSame('mcp', $command->source);
+        $this->assertStringContainsString($owner->email, $command->actor);
     }
 
     public function test_list_pending_updates_marks_excluded_items(): void
@@ -302,7 +355,7 @@ class McpGatewayTest extends TestCase
         ]);
         UpdateExclusion::create(['site_id' => $site->id, 'context' => 'theme', 'slug' => 'astra']);
 
-        PlugsentServer::actingAs($owner)
+        PlugsentServer::actingAs($this->withAbilities($owner, ['mcp:read', 'mcp:write']))
             ->tool(ListPendingUpdates::class)
             ->assertSee('2 item(s)')
             ->assertSee('[plugin] Akismet 5.2 → 5.3')
@@ -358,6 +411,28 @@ class McpGatewayTest extends TestCase
     /**
      * @return array<string, mixed>
      */
+    /**
+     * Give the user a stand-in Sanctum token carrying exactly these
+     * abilities for the tool call (the guard normally supplies one).
+     */
+    private function withAbilities($user, array $abilities)
+    {
+        return $user->withAccessToken(new class($abilities) implements HasAbilities
+        {
+            public function __construct(public readonly array $abilities) {}
+
+            public function can($ability, ...$params)
+            {
+                return in_array($ability, $this->abilities, true) || in_array('*', $this->abilities, true);
+            }
+
+            public function cant($ability, ...$params)
+            {
+                return ! $this->can($ability);
+            }
+        });
+    }
+
     private function initializeRequest(): array
     {
         return [
