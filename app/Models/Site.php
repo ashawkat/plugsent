@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['workspace_id', 'project_id', 'name', 'url', 'status', 'php_version', 'wp_version', 'last_seen_at', 'tags', 'capabilities', 'connector_version', 'api_key', 'api_key_hash', 'uptime_enabled', 'uptime_status', 'uptime_last_checked_at', 'uptime_last_status_code', 'uptime_last_response_ms', 'uptime_last_error', 'uptime_consecutive_failures', 'security_facts', 'hardening', 'security_score', 'security_scanned_at', 'ssl_expires_at', 'domain_expires_at', 'domain_checked_at', 'updates_fingerprint', 'updates_notified_at'])]
+#[Fillable(['workspace_id', 'project_id', 'name', 'url', 'status', 'php_version', 'wp_version', 'last_seen_at', 'tags', 'capabilities', 'connector_version', 'api_key', 'api_key_hash', 'uptime_enabled', 'uptime_status', 'uptime_last_checked_at', 'uptime_last_status_code', 'uptime_last_response_ms', 'uptime_last_error', 'uptime_consecutive_failures', 'security_facts', 'hardening', 'security_score', 'security_scanned_at', 'ssl_expires_at', 'domain_expires_at', 'domain_checked_at'])]
 class Site extends Model
 {
     public const UPTIME_UP = 'up';
@@ -37,7 +37,6 @@ class Site extends Model
             'ssl_expires_at' => 'datetime',
             'domain_expires_at' => 'datetime',
             'domain_checked_at' => 'datetime',
-            'updates_notified_at' => 'datetime',
         ];
     }
 

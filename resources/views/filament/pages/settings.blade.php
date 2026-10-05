@@ -96,6 +96,25 @@
         </p>
     </div>
 
+    {{-- Notifications --}}
+    <div class="plugsent-category">
+        <div class="plugsent-category-head">
+            <h2>Notifications</h2>
+        </div>
+        <div class="plugsent-form-grid">
+            <div class="plugsent-field">
+                <label>Daily updates email — send at (server time)</label>
+                <input type="time" class="plugsent-input" wire:model.lazy="digestTime" />
+            </div>
+        </div>
+        <p class="plugsent-note plugsent-card-body">
+            One email per day listing every site with pending plugin, theme, and core updates —
+            no per-update emails in between, so your SMTP quota stays predictable. Individual
+            users can opt out of updates emails from their profile (My account → email
+            preferences). Workspaces with nothing pending don't get an email at all.
+        </p>
+    </div>
+
     {{-- Vulnerability feed --}}
     <div class="plugsent-category" wire:poll.5s>
         <div class="plugsent-category-head">

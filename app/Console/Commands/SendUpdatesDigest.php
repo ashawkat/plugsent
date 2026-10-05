@@ -6,17 +6,29 @@ use App\Models\InventoryItem;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Notifications\UpdatesAvailableNotification;
+use App\Support\AppSettings;
 use Illuminate\Console\Command;
-use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class SendUpdatesDigest extends Command
 {
+    private const SENT_KEY = 'plugsent.updates-digest-sent';
+
     protected $signature = 'plugsent:updates-digest';
 
     protected $description = 'Send the once-a-day "updates available" digest per workspace (skips workspaces with nothing pending)';
 
+    /**
+     * The digest is the single updates email Plugsent sends — one per day,
+     * at a time configured in Settings. The schedule ticks every 15
+     * minutes; this guard makes it fire once, after the configured time.
+     */
     public function handle(): int
     {
+        if (! $this->dueToday()) {
+            return self::SUCCESS;
+        }
+
         $workspaces = Workspace::query()->with('sites')->get();
         $sent = 0;
 
@@ -43,9 +55,26 @@ class SendUpdatesDigest extends Command
             $sent += $this->notifyRecipients($workspace, $siteDigest);
         }
 
+        Cache::put(self::SENT_KEY, today()->toDateString(), now()->endOfDay());
+
         $this->info("Updates digest sent to {$sent} recipient(s).");
 
         return self::SUCCESS;
+    }
+
+    private function dueToday(): bool
+    {
+        $time = app(AppSettings::class)->get(AppSettings::UPDATES_DIGEST_TIME, '08:00') ?? '08:00';
+
+        if (! preg_match('/^\d{2}:\d{2}$/', $time)) {
+            $time = '08:00';
+        }
+
+        if (now()->format('H:i') < $time) {
+            return false;
+        }
+
+        return Cache::get(self::SENT_KEY) !== today()->toDateString();
     }
 
     private function notifyRecipients(Workspace $workspace, array $siteDigest): int
@@ -58,7 +87,7 @@ class SendUpdatesDigest extends Command
             ->filter(fn (User $user) => $user->wantsEmail('updates'));
 
         foreach ($users as $user) {
-            $user->notify(new UpdatesAvailableNotification($workspace, new Collection($siteDigest)));
+            $user->notify(new UpdatesAvailableNotification($workspace, $siteDigest));
         }
 
         return $users->count();

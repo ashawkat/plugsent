@@ -39,10 +39,11 @@ channel — no firewall rules, no inbound ports, and never your WordPress admin 
   - **Hourly inventory refresh** — `plugsent:refresh-inventory` re-scans every connected site
     each hour (skipping sites with a scan already outstanding), so pending-update lists stop
     drifting stale. The connector only scans when asked — now it is asked on a schedule.
-  - **"Updates detected" emails** — when a fresh scan shows a changed set of pending updates
-    on a site, workspace owners/admins get one email per distinct set. Each site stores a
-    fingerprint of the pending-update set, so there are no repeats until something changes —
-    and nothing when a site is clean. The daily 08:00 digest remains the once-a-day summary.
+  - **One updates email a day** — the daily digest is the single updates email: every site
+    with pending plugin/theme/core updates, sent once a day at a time configured in Settings
+    (Settings → Notifications). No per-update emails in between, so SMTP cost stays
+    predictable; users can still opt out per profile, and workspaces with nothing pending
+    don't get mail at all.
   - **Branded everything** — every email (uptime, security, updates, password, invitations)
     shares the Plugsent-styled layout, now set in self-hosted **Google Sans**; the workspace
     invitation moved onto it too.
@@ -272,7 +273,7 @@ policies the UI uses — a member-role token cannot update a lead-only site.
 | 3 — Safety net | ✅ shipped | ✅ uptime + incidents + email alerts · ✅ Wordfence vulnerability feed & matching |
 | 3.5 — Security | ✅ shipped | Security score, health checks, connector-enforced hardening toggles, site tabs, history audit trail, quick-switcher |
 | 3.6 — Accounts & emails | ✅ shipped | Branded email templates (uptime/security/daily updates digest/password), My account page with email preferences, TOTP 2FA with recovery codes, revealable password fields |
-| 3.7 — Autopilot | ✅ shipped | Hourly inventory refresh, fingerprint-tracked "updates detected" emails, self-installing scheduler, `rescan-inventory` MCP tool, Google Sans email branding |
+| 3.7 — Autopilot | ✅ shipped | Hourly inventory refresh, one configurable-time daily updates email, self-installing scheduler, `rescan-inventory` MCP tool, Google Sans email branding |
 | 4 — Teams & MCP | 🟡 half shipped | ✅ invitations, roles, project-level RBAC · ✅ MCP gateway (Sanctum tokens, list/status/updates/rescan tools) · ⬜ public REST API |
 | 5 — Parity extras | 🔜 coming soon | Performance (PageSpeed) monitoring, broken-link checking, backups, malware scanning, activity log beyond commands, alerting rules |
 

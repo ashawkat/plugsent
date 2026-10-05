@@ -18,8 +18,11 @@ Schedule::command('uptime:check')->everyMinute()->withoutOverlapping();
 // the manual "Sync now" button on the Settings page is plenty.
 Schedule::command('vuln:sync')->weeklyOn(1, '3:00');
 
-// The once-a-day "updates available" digest, first thing in the morning.
-Schedule::command('plugsent:updates-digest')->dailyAt('08:00');
+// The once-a-day "updates available" digest — the single updates email
+// Plugsent sends. The send time is configured in Settings; the command
+// guards itself, so the schedule just ticks every 15 minutes and lets the
+// command decide when the configured moment has arrived.
+Schedule::command('plugsent:updates-digest')->everyFifteenMinutes();
 
 // Hourly inventory rescan for every connected site: without it the
 // pending-update lists (and the update-discovery emails they trigger)

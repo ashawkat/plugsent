@@ -42,6 +42,8 @@ class Settings extends Page
 
     public ?string $wfApiKey = null;
 
+    public string $digestTime = '08:00';
+
     public function mount(): void
     {
         $settings = app(MailSettings::class);
@@ -56,6 +58,8 @@ class Settings extends Page
         $this->encryption = MailSettings::normalizeScheme($all['mail_encryption'] ?? null);
         $this->fromAddress = $all['mail_from_address'] ?: null;
         $this->fromName = $all['mail_from_name'] ?: null;
+
+        $this->digestTime = app(AppSettings::class)->get(AppSettings::UPDATES_DIGEST_TIME, '08:00');
 
         // Secrets never round-trip to the browser; blank means "keep".
         $this->password = null;
@@ -157,9 +161,11 @@ class Settings extends Page
             'encryption' => ['nullable', 'in:smtp,smtps,none'],
             'fromAddress' => ['required', 'email', 'max:255'],
             'fromName' => ['nullable', 'string', 'max:255'],
+            'digestTime' => ['required', 'date_format:H:i'],
         ], [
             'host.required_if' => 'The SMTP host is required when the mailer is SMTP.',
             'fromAddress.required' => 'The "from" address is required — replies and bounces point there.',
+            'digestTime.date_format' => 'The updates email time must use the 24-hour HH:MM format.',
         ]);
 
         $port = $this->port ?: ($this->mailer === MailSettings::MAILER_SMTP ? 587 : null);
@@ -176,6 +182,8 @@ class Settings extends Page
         ], static fn ($value) => $value !== null));
 
         app(MailSettings::class)->apply();
+
+        app(AppSettings::class)->put(AppSettings::UPDATES_DIGEST_TIME, $this->digestTime);
 
         $this->password = null;
 

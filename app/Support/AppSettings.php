@@ -15,6 +15,8 @@ class AppSettings
 
     public const VULN_LAST_SYNC = 'vuln_last_sync';
 
+    public const UPDATES_DIGEST_TIME = 'updates_digest_time';
+
     public function get(string $key, ?string $default = null): ?string
     {
         try {
