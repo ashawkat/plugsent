@@ -20,11 +20,13 @@ class UpdateRun extends Model
     protected $fillable = [
         'site_id', 'context', 'slug', 'command_id', 'from_version', 'to_version',
         'status', 'message', 'smoke_ok', 'smoke_status_code', 'db_backup', 'files_backup',
+        'verified_at',
     ];
 
     protected function casts(): array
     {
         return [
+            'verified_at' => 'datetime',
             'smoke_ok' => 'boolean',
             'smoke_status_code' => 'integer',
             'db_backup' => 'boolean',

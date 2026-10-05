@@ -784,7 +784,13 @@
                                     @endif
                                 </td>
                                 <td class="plugsent-muted">
-                                    {{ \Illuminate\Support\Str::limit($cmd->result['error'] ?? ($cmd->result['data']['update']['message'] ?? ($cmd->result['data']['safe']['message'] ?? '')) ?: '', 90) }}
+                                    @php
+                                        $detail = $cmd->result['verification']['message']
+                                            ?? $cmd->result['error']
+                                            ?? ($cmd->result['data']['update']['message'] ?? ($cmd->result['data']['safe']['message'] ?? ''))
+                                            ?: '';
+                                    @endphp
+                                    {{ \Illuminate\Support\Str::limit($detail, 110) }}
                                 </td>
                             </tr>
                         @empty

@@ -39,6 +39,9 @@ channel — no firewall rules, no inbound ports, and never your WordPress admin 
   - **Hourly inventory refresh** — `plugsent:refresh-inventory` re-scans every connected site
     each hour (skipping sites with a scan already outstanding), so pending-update lists stop
     drifting stale. The connector only scans when asked — now it is asked on a schedule.
+  - **Post-update verification** — after every update batch a fresh scan judges the result:
+    if the site still offers the same old version, the run flips to **failed** with an
+    explanation (typically a missing plugin license) instead of silently claiming success.
   - **One updates email a day** — the daily digest is the single updates email: every site
     with pending plugin/theme/core updates, sent once a day at a time configured in Settings
     (Settings → Notifications). No per-update emails in between, so SMTP cost stays
@@ -280,7 +283,7 @@ policies the UI uses — a member-role token cannot update a lead-only site.
 | 3 — Safety net | ✅ shipped | ✅ uptime + incidents + email alerts · ✅ Wordfence vulnerability feed & matching |
 | 3.5 — Security | ✅ shipped | Security score, health checks, connector-enforced hardening toggles, site tabs, history audit trail, quick-switcher |
 | 3.6 — Accounts & emails | ✅ shipped | Branded email templates (uptime/security/daily updates digest/password), My account page with email preferences, TOTP 2FA with recovery codes, revealable password fields |
-| 3.7 — Autopilot | ✅ shipped | Hourly inventory refresh, one configurable-time daily updates email, self-installing scheduler, `rescan-inventory` MCP tool, Google Sans email branding |
+| 3.7 — Autopilot | ✅ shipped | Hourly inventory refresh, one configurable-time daily updates email, self-installing scheduler, `rescan-inventory` MCP tool, Google Sans email branding, post-update verification (connector "success" is checked against fresh inventory — no-update-taken runs flip to failed) |
 | 4 — Teams & MCP | 🟡 half shipped | ✅ invitations, roles, project-level RBAC · ✅ MCP gateway (Sanctum tokens, list/status/updates/rescan tools) · ⬜ public REST API |
 | 5 — Parity extras | 🔜 coming soon | Performance (PageSpeed) monitoring, broken-link checking, backups, malware scanning, activity log beyond commands, alerting rules |
 

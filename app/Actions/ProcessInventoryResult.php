@@ -56,6 +56,10 @@ class ProcessInventoryResult
         // vulnerability feed right away.
         app(MatchInventoryVulnerabilities::class)($site);
 
+        // Fresh inventory is also the ground truth for "did that update
+        // actually take?" — judge recent update runs against it.
+        app(VerifyUpdateRuns::class)($site);
+
         return $count;
     }
 }
