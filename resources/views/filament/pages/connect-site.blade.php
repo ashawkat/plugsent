@@ -10,16 +10,21 @@
             <strong>Plugins → Add New → Upload Plugin</strong>, and activate it. Then generate a pairing code below.
         </x-slot:description>
 
-        <x-slot:actions>
-            <a href="{{ route('connector.download') }}"
-               class="fi-btn fi-btn-color-primary fi-btn-size-md fi-accent-action">
-                Download connector {{ filled($release['tag'] ?? null) ? $release['tag'] : '' }} (.zip)
-            </a>
-            <a href="https://github.com/{{ config('plugsent.connector_repo') }}/releases" target="_blank" rel="noopener"
-               class="fi-link fi-link-size-md">
-                All releases ↗
-            </a>
-        </x-slot:actions>
+        <x-slot:afterHeader>
+            <x-filament::actions>
+                <x-filament::button
+                    tag="a"
+                    href="{{ route('connector.download') }}"
+                    color="primary"
+                    size="md"
+                    icon="heroicon-o-arrow-down-tray">
+                    Download connector {{ filled($release['tag'] ?? null) ? $release['tag'] : '' }} (.zip)
+                </x-filament::button>
+                <x-filament::link href="https://github.com/{{ config('plugsent.connector_repo') }}/releases">
+                    All releases ↗
+                </x-filament::link>
+            </x-filament::actions>
+        </x-slot:afterHeader>
     </x-filament::section>
 
     {{ $this->content }}

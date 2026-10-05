@@ -34,6 +34,9 @@ class FilamentPagesTest extends TestCase
         $this->get("/app/{$workspace->slug}/sites")->assertOk();
         $this->get("/app/{$workspace->slug}/sites/create")->assertOk();
         $this->get("/app/{$workspace->slug}/connect-site")->assertOk();
+        $this->get("/app/{$workspace->slug}/connect-site")
+            ->assertSee('Download connector')
+            ->assertSee('/connector/download');
         $this->get("/app/{$workspace->slug}/sites/1")->assertOk();
         $this->get("/app/{$workspace->slug}/team")->assertOk();
     }
