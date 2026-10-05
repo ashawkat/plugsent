@@ -14,4 +14,8 @@
         Paste this whole string into <strong>Settings → Plugsent Connector</strong> on the WordPress site.
         No expiry — regenerate it from the dashboard any time.
     </p>
+    <p class="plugsent-note" style="margin:0 0 4px;">
+        Need the plugin? <a href="{{ route('connector.download') }}">Download the connector (.zip) ↗</a>
+        — upload via <strong>Plugins → Add New → Upload Plugin</strong> and activate.
+    </p>
 </div>

@@ -46,4 +46,16 @@ return [
     | default; a successful sync stores everything locally anyway.
     */
     'vuln_sync_cooldown_seconds' => env('PLUGSENT_VULN_SYNC_COOLDOWN', 3600),
+
+    /*
+    |------------------------------------------------------------------
+    | Connector distribution
+    |------------------------------------------------------------------
+    |
+    | Where the dashboard's "Download connector" button points: the latest
+    | release asset of this GitHub repo is resolved via the API (cached)
+    | and the browser is redirected to it. Forks can point this at their
+    | own connector repo.
+    */
+    'connector_repo' => env('PLUGSENT_CONNECTOR_REPO', 'ashawkat/plugsent-connector'),
 ];
