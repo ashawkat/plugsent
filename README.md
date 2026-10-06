@@ -30,122 +30,48 @@ channel — no firewall rules, no inbound ports, and never your WordPress admin 
 
 ## What's new
 
-- **Oct 2026 — autopilot** — Plugsent keeps itself running and keeps you posted:
-  - **Self-installing scheduler** — the scheduler writes a heartbeat every minute; when a
-    connector checks in and the heartbeat is stale, the app installs its own
-    `php artisan schedule:run` cron entry (production only, one repair attempt per hour,
-    logged). Fresh installs set themselves up on the first site check-in — no manual cron —
-    and `php artisan plugsent:ensure-scheduler` does the same thing by hand.
-  - **Hourly inventory refresh** — `plugsent:refresh-inventory` re-scans every connected site
-    each hour (skipping sites with a scan already outstanding), so pending-update lists stop
-    drifting stale. The connector only scans when asked — now it is asked on a schedule.
-  - **Post-update verification** — after every update batch a fresh scan judges the result:
-    if the site still offers the same old version, the run flips to **failed** with an
-    explanation (typically a missing plugin license) instead of silently claiming success.
-  - **One updates email a day** — the daily digest is the single updates email: every site
-    with pending plugin/theme/core updates, sent once a day at a time configured in Settings
-    (Settings → Notifications). No per-update emails in between, so SMTP cost stays
-    predictable; users can still opt out per profile, and workspaces with nothing pending
-    don't get mail at all.
-  - **Branded everything** — every email (uptime, security, updates, password, invitations)
-    shares the Plugsent-styled layout, now set in self-hosted **Google Sans**; the workspace
-    invitation moved onto it too.
-- **Oct 2026 — control & trust** — updates you can see, modes you can choose:
-  - **Fast or safe updates, per site** — every site runs **safe mode** by default
-    (restore point → update → smoke test → automatic rollback). A header toggle on the site
-    page switches it to **fast mode** (updates apply directly — much quicker, nothing to roll
-    back), and the `update-site` MCP tool takes a `mode` parameter so agents choose per call.
-  - **Honest update progress** — the in-progress panel shows a real progress bar
-    ("3 of 5 done"), a ticking timer, and per-item state ("queued — waiting for the site" /
-    "updating"). If a site stops checking in or nothing moves for 5 minutes, it says so
-    plainly: the site may be offline, commands expire after an hour, re-run when it's back.
-  - **Offline detection** — a site whose connector stopped checking in reads as
-    **"unreachable · last seen …"** (amber) in the sites list and on its page instead of a
-    reassuring "connected", and queueing updates to it warns you up front.
-  - **Read-only MCP tokens by default** — new tokens can inspect but not mutate;
-    write access is an explicit opt-in, and every command an agent queues is stamped
-    "via MCP" with the account and token name in the site's History.
-  - **Connector downloads from the dashboard** — the Connect site flow offers a
-    "Download connector vX (.zip)" button that resolves the connector repo's latest GitHub
-    release (cached, with a releases-page fallback); forks can point it at their own repo.
-  - **Self-healing admin login** — the magic-link redirect retries itself if the first
-    navigation is swallowed, and the page offers an "Open wp-admin" fallback instead of
-    hanging on a spinner.
-- **Oct 2026 — MCP gateway** — plug Plugsent into any chat client or coding agent:
-  `laravel/mcp` exposes a streamable-HTTP MCP server at `/mcp/plugsent`, authenticated with a
-  per-user bearer token generated on **My account → MCP access**. Five tools — `list-sites`,
-  `get-site-status`, `list-pending-updates`, `update-site`, and `rescan-inventory` — resolve
-  through the same site policies as the dashboard, so a token can never out-perform its
-  owner. See [Chat with Plugsent over MCP](#chat-with-plugsent-over-mcp).
-- **Sep 2026 — the fleet dashboard** — the home page became a real command center:
-  - **Fleet health at a glance** — a security-score ring for the whole workspace, KPI cards
-    (sites online, pending updates, open vulnerabilities by severity, uptime) with 14-day trend
-    sparklines and week-over-week deltas from a nightly snapshot job, a **Needs attention** table
-    that ranks the worst sites with the reason each one is on the list, the 14 security checks
-    aggregated across the fleet as worst-first pass-rate bars, a fleet-wide activity feed, and
-    per-site 30-day uptime strips.
-  - **Sites list upgraded** — grouped by project, risk-ordered (disconnected first, lowest score
-    next), severity dots per vulnerability class, and inline 30-day uptime mini-strips.
-  - **Site overview rebuilt** — the Overview tab now leads with the score ring, failing checks
-    with reasons, hardening **quick wins** with point math, pending updates with `from → to`
-    versions and one-click Update all, and the uptime card with rate, strip, and SSL/domain
-    expiry.
-- **Jul 2026 → Sep 2026** — the platform grew from "inventory viewer" to a real manager:
-  - **Safe updates** — every plugin/theme update runs the full pipeline: files + database restore
-    point → update → site smoke test → **automatic rollback** if the site stops answering. Plus a
-    manual **Restore backup** action for updates that "succeed" but misbehave.
-  - **Uptime monitoring** — every enabled site is checked every 5 minutes (no cron needed — checks
-    piggyback on connector check-ins); downtime incidents open after two consecutive failures and
-    the workspace gets 🔴 down / 🟢 recovered emails through the built-in SMTP settings.
-  - **Plugin/theme management** — activate, deactivate, delete, switch themes, and per-item
-    "exclude from updates" straight from the dashboard. The connector itself can never be managed
-    remotely.
-  - **Teams** — email invitations with a one-step join (invitees just pick a name and password),
-    workspace + per-project roles.
-  - **Settings UI** — configure SMTP (with test email) from the dashboard; values override `.env`.
-  - **Admin quick login** — one-click single-use magic login into wp-admin.
-- **Sep 2026** — the WP Umbrella-class feature set landed:
-  - **Security** (connector 0.13.0+) — a per-site security **score out of 100** built from 14
-    health checks (WP_DEBUG, SSL, WP/PHP support status, inactive software, vulnerable software,
-    plus the six hardening protections), an "attention needed" list with one-click **Fix**
-    buttons, and **hardening toggles** the connector enforces on the site: hide WP version,
-    block user enumeration, mask login errors, disable the file editor, send security headers,
-    disable XML-RPC. Toggle state is persisted on the site (DB-backed option) and survives
-    restarts; all scoring logic lives on the panel so it evolves without touching sites.
-  - **Vulnerability intelligence** — a local mirror of the **Wordfence Intelligence feed**
-    (free API key, refreshed from Settings with a 1-hour cooldown, runs as a detached
-    background job) matched against every site's inventory. Sites show "⚠ N vulnerable"
-    badges, each opening a detail popup (severity, CVSS, CVE link, affected range, fix
-    status, description, references, what-to-do advice), and the Security tab lists every
-    affected plugin/theme per site with a "fix available" hint.
-  - **Site pages became tabs** — Overview / Plugins / Themes / Core / Uptime / Security /
-    History, like WP Umbrella. Overview summarizes security, updates, and uptime; **History**
-    is an audit trail of the last 40 commands (updates, rollbacks, restores, logins, scans).
-    Tabs are URL-addressable (`?tab=security`) and a **quick-switcher** dropdown (search,
-    keeps the current tab) jumps between sites from anywhere on a site page.
-  - **Uptime revamp** — status cards (current status, **domain expiry via RDAP**, **SSL expiry
-    read from the served certificate** — cached daily, last check), a **30-day uptime-rate**
-    percentage with per-day bars computed from incidents, and an incident timeline instead of
-    a table.
-- **Sep 2026, part 2** — emails, accounts, and account security:
-  - **Branded email templates** — one shared Plugsent-styled HTML layout powers every email:
-    🔴 site-down / 🟢 recovered uptime alerts, 🛡 **security alerts** (sent when a site's
-    vulnerability count grows, throttled to one email per site per day), a **daily
-    "updates available" digest** (once a day per workspace — every site with pending updates
-    and the exact versions, no per-update spam), and a **"your password was changed"**
-    confirmation with a "this wasn't you" warning.
-  - **My account page** — every user can update their name/email, change their password
-    (requires the current password, signs out other browser sessions, and emails a
-    confirmation), and set **email preferences** — uptime, security, and updates emails each
-    have an opt-out, respected by every sender.
-  - **Two-factor authentication (TOTP)** — enable from My account by scanning a QR code with
-    any authenticator app; sign-in then requires a 6-digit code after the password (built on
-    Filament's multi-factor challenge system). Eight one-time **recovery codes** are shown at
-    setup and can be used instead of a code if the device is lost; disabling 2FA or
-    regenerating codes requires the account password. Secrets are encrypted at rest, recovery
-    codes hashed.
-  - **Show/hide (eye) icons** on every password field — registration, login, password reset,
-    invite join, and the account page.
+Recent releases, newest first. The [Features](#features-working-today) section below is the
+full, current list.
+
+**October 2026 — autopilot, control & trust**
+
+- **Self-installing scheduler** — fresh installs set up their own cron on the first site
+  check-in; `plugsent:ensure-scheduler` for everything else.
+- **Hourly inventory refresh & post-update verification** — pending-update lists stay honest,
+  and a connector's "success" is confirmed against a fresh scan before the dashboard believes it.
+- **Fast or safe updates, per site** — safe mode (default) runs restore point → smoke test →
+  automatic rollback; fast mode applies directly when speed matters. Agents choose per call
+  over MCP.
+- **Offline detection & honest progress** — unreachable sites read "unreachable · last seen …"
+  instead of "connected", and the update panel shows a real progress bar that explains stalls
+  instead of freezing.
+- **Read-only MCP tokens by default** — agents can inspect without mutating, and every
+  agent-queued command is stamped "via MCP" with the account and token name in the site's History.
+- **One updates email a day** — a single digest at a time you pick in Settings; no per-update
+  spam, per-user opt-outs respected.
+- **Connector downloads in the dashboard** — the pairing flow offers the latest connector ZIP
+  straight from your repo's releases.
+- **Self-healing admin login** — the magic-link redirect retries itself and always offers a
+  manual fallback.
+- **MCP gateway** — five policy-scoped tools for chat clients and coding agents (see below).
+- **Branded everything** — every email shares the Plugsent layout in self-hosted Google Sans.
+
+**September 2026 — the WP Umbrella-class feature set**
+
+- **Fleet dashboard** — workspace score ring, KPI trend cards, needs-attention ranking,
+  security-check pass rates, activity feed, per-site uptime strips.
+- **Security & hardening** — 14-check score with one-click fixes and six connector-enforced
+  hardening toggles.
+- **Vulnerability intelligence** — local Wordfence feed mirror matched against every site,
+  with per-vulnerability detail popups.
+- **Site tabs & audit trail** — Overview / Plugins / Themes / Core / Uptime / Security /
+  History, with a cross-site quick-switcher.
+- **Uptime monitoring** — 5-minute checks, RDAP domain expiry, served-certificate SSL expiry,
+  30-day rates, incident timeline.
+- **Safe updates pipeline** — restore point → update → smoke test → automatic rollback, plus
+  manual restore.
+- **Teams & accounts** — invitations with per-project roles, SMTP settings UI, TOTP 2FA with
+  recovery codes, per-user email opt-outs.
 
 ## Features (working today)
 
