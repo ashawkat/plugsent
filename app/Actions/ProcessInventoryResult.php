@@ -24,14 +24,31 @@ class ProcessInventoryResult
             };
 
             foreach ($inventory[$key] ?? [] as $item) {
+                $version = $item['version'] ?? null;
+                $updateVersion = $item['update_version'] ?? null;
+                $updateAvailable = (bool) ($item['update_available'] ?? false);
+
+                // WordPress sometimes offers a "package refresh" of the
+                // version that is already installed (e.g. after a partial
+                // core update). An offered version that is not newer is not
+                // an update — storing it as one makes every surface (badges,
+                // counts, digest, MCP) claim an update that would change
+                // nothing.
+                if ($updateAvailable
+                    && is_string($version) && $version !== ''
+                    && is_string($updateVersion) && $updateVersion !== ''
+                    && version_compare($updateVersion, $version, '<=')) {
+                    $updateAvailable = false;
+                }
+
                 $rows[] = [
                     'site_id' => $site->getKey(),
                     'context' => $context,
                     'slug' => (string) ($item['slug'] ?? ''),
                     'name' => (string) ($item['name'] ?? $item['slug'] ?? ''),
-                    'version' => $item['version'] ?? null,
-                    'update_available' => (bool) ($item['update_available'] ?? false),
-                    'update_version' => $item['update_version'] ?? null,
+                    'version' => $version,
+                    'update_available' => $updateAvailable,
+                    'update_version' => $updateVersion,
                     'active' => (bool) ($item['active'] ?? false),
                 ];
             }
