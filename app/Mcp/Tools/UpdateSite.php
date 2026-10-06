@@ -34,6 +34,8 @@ class UpdateSite extends Tool
             'slugs' => $schema->array()
                 ->items($schema->string())
                 ->description('Specific plugin/theme slugs (or "wordpress" for core) to update. Omit to update every pending item of the context.'),
+            'mode' => $schema->string()
+                ->description('Update mode: safe (restore point, smoke test, automatic rollback) or fast (apply directly — quicker, nothing to roll back). Omit to use the site\'s configured mode.'),
         ];
     }
 
@@ -96,8 +98,18 @@ class UpdateSite extends Tool
             return Response::text("Nothing to update: every pending {$context} item on {$site->name} is excluded from updates.");
         }
 
+        $mode = $request->get('mode');
+
+        if ($mode !== null && ! in_array($mode, ['safe', 'fast'], true)) {
+            return Response::text('Unknown mode "'.((string) $mode).'". Use safe or fast.');
+        }
+
         $batchId = (string) Str::uuid();
-        $safe = $context !== InventoryItem::CONTEXT_CORE && $site->supportsCommand('update.safe');
+        $safe = match ($mode) {
+            'fast' => false,
+            'safe' => $context !== InventoryItem::CONTEXT_CORE && $site->supportsCommand('update.safe'),
+            default => ! $site->fast_updates && $context !== InventoryItem::CONTEXT_CORE && $site->supportsCommand('update.safe'),
+        };
 
         foreach ($eligible as $item) {
             app(EnqueueSiteCommand::class)(

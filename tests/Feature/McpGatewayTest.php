@@ -150,6 +150,69 @@ class McpGatewayTest extends TestCase
         $this->assertSame(SiteCommand::STATUS_PENDING, $command->status);
     }
 
+    public function test_site_fast_updates_mode_queues_plain_updates(): void
+    {
+        $owner = User::factory()->create();
+        $workspace = app(CreateWorkspaceForUser::class)($owner, 'Alpha');
+        $project = Project::create(['workspace_id' => $workspace->id, 'name' => 'Client A']);
+        $site = Site::create([
+            'workspace_id' => $workspace->id,
+            'project_id' => $project->id,
+            'name' => 'client-a.test',
+            'url' => 'https://client-a.test',
+            'status' => 'connected',
+            'capabilities' => ['update.safe'],
+            'fast_updates' => true,
+        ]);
+
+        InventoryItem::create([
+            'site_id' => $site->id, 'context' => 'plugin', 'slug' => 'akismet',
+            'name' => 'Akismet', 'version' => '5.2', 'update_available' => true,
+            'update_version' => '5.3', 'active' => true,
+        ]);
+
+        PlugsentServer::actingAs($this->withAbilities($owner, ['mcp:read', 'mcp:write']))
+            ->tool(UpdateSite::class, ['site_id' => $site->id, 'context' => 'plugin'])
+            ->assertSee('update(s) for client-a.test');
+
+        $this->assertSame('update.run', SiteCommand::query()->sole()->type);
+    }
+
+    public function test_update_site_mode_parameter_overrides_the_site_default(): void
+    {
+        $owner = User::factory()->create();
+        $workspace = app(CreateWorkspaceForUser::class)($owner, 'Alpha');
+        $project = Project::create(['workspace_id' => $workspace->id, 'name' => 'Client A']);
+        $site = Site::create([
+            'workspace_id' => $workspace->id,
+            'project_id' => $project->id,
+            'name' => 'client-a.test',
+            'url' => 'https://client-a.test',
+            'status' => 'connected',
+            'capabilities' => ['update.safe'],
+        ]);
+
+        InventoryItem::create([
+            'site_id' => $site->id, 'context' => 'plugin', 'slug' => 'akismet',
+            'name' => 'Akismet', 'version' => '5.2', 'update_available' => true,
+            'update_version' => '5.3', 'active' => true,
+        ]);
+
+        // Site default is safe, but the call asks for fast.
+        PlugsentServer::actingAs($this->withAbilities($owner, ['mcp:read', 'mcp:write']))
+            ->tool(UpdateSite::class, ['site_id' => $site->id, 'context' => 'plugin', 'mode' => 'fast'])
+            ->assertSee('update(s) for client-a.test');
+
+        $this->assertSame('update.run', SiteCommand::query()->sole()->type);
+
+        // ...and an unknown mode is rejected outright.
+        PlugsentServer::actingAs($this->withAbilities($owner, ['mcp:read', 'mcp:write']))
+            ->tool(UpdateSite::class, ['site_id' => $site->id, 'context' => 'plugin', 'mode' => 'yolo'])
+            ->assertSee('Unknown mode');
+
+        $this->assertSame(1, SiteCommand::query()->count());
+    }
+
     public function test_update_site_uses_the_plain_update_for_core_even_when_safe_updates_exist(): void
     {
         $owner = User::factory()->create();

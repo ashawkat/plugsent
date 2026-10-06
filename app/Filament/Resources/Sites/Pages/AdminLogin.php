@@ -8,7 +8,6 @@ use App\Models\Site;
 use App\Models\SiteCommand;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 
 class AdminLogin extends Page
@@ -22,6 +21,10 @@ class AdminLogin extends Page
     public ?string $error = null;
 
     public bool $enqueued = false;
+
+    public ?string $loginUrl = null;
+
+    public bool $redirected = false;
 
     public function mount(Site $record): void
     {
@@ -90,12 +93,18 @@ class AdminLogin extends Page
             $url = $command->result['data']['admin_login']['url'] ?? null;
 
             if (filled($url)) {
-                // The magic URL is single-use, and the 2s poll can fire
-                // again while the browser is still committing the first
-                // redirect — the second navigation would eat the token and
-                // land on the site's "no pending link" error. Let exactly
-                // one poll claim the redirect.
-                if (Cache::add('admin-login-redirect:'.$command->getKey(), true, 120)) {
+                $this->loginUrl = $url;
+
+                // The magic URL is single-use but valid for 5 minutes, and a
+                // poll's redirect can race with the page still committing —
+                // a server-side one-claim guard turned that race into a dead
+                // page (the claim burned, the browser never moved). Instead:
+                // every un-redirected poll navigates, so the next 2s poll
+                // simply retries if the first attempt never landed. Once the
+                // property is set the polls stop re-issuing, and the manual
+                // button below covers a swallowed redirect.
+                if (! $this->redirected) {
+                    $this->redirected = true;
                     $this->redirect($url);
                 }
             }
@@ -116,6 +125,17 @@ class AdminLogin extends Page
         if ($command->created_at->lt(now()->subSeconds(150))
             && $command->status !== SiteCommand::STATUS_COMPLETED) {
             $this->error = 'The site did not answer in time. Check that it is online and running connector 0.8.0+, then retry.';
+        }
+    }
+
+    /**
+     * Manual fallback: re-issue the redirect if the automatic one was
+     * swallowed. The token stays valid for 5 minutes unless already used.
+     */
+    public function openLoginUrl(): void
+    {
+        if (filled($this->loginUrl)) {
+            $this->redirect($this->loginUrl);
         }
     }
 }

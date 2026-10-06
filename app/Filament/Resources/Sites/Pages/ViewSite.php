@@ -259,6 +259,28 @@ class ViewSite extends Page
                         ->success()
                         ->send();
                 }),
+            Action::make('updateMode')
+                ->label(fn (): string => $this->site->fast_updates ? 'Update mode: fast' : 'Update mode: safe')
+                ->icon(fn (): string => $this->site->fast_updates ? 'heroicon-o-bolt' : 'heroicon-o-shield-check')
+                ->color(fn (): string => $this->site->fast_updates ? 'warning' : 'gray')
+                ->visible(fn (): bool => $this->site->isConnected() && $this->site->supportsCommand('update.safe'))
+                ->requiresConfirmation()
+                ->modalHeading('Change the update mode for '.$this->site->name)
+                ->modalDescription(fn (): string => $this->site->fast_updates
+                    ? 'Switch back to safe updates? Every plugin/theme update gets a restore point, a smoke test, and automatic rollback (a few minutes per item).'
+                    : 'Switch to fast updates? Updates apply directly — much quicker, but there is no restore point and no smoke test, so a broken update stays broken until you fix it.')
+                ->modalSubmitActionLabel(fn (): string => $this->site->fast_updates ? 'Use safe mode' : 'Use fast mode')
+                ->action(function (): void {
+                    $this->site->forceFill(['fast_updates' => ! $this->site->fast_updates])->save();
+
+                    Notification::make()
+                        ->title($this->site->fast_updates ? 'Fast updates enabled' : 'Safe updates enabled')
+                        ->body($this->site->fast_updates
+                            ? 'Updates now apply directly — no restore point, no smoke test.'
+                            : 'Updates now run the full pipeline: restore point, smoke test, automatic rollback.')
+                        ->success()
+                        ->send();
+                }),
         ];
     }
 
@@ -313,7 +335,9 @@ class ViewSite extends Page
         Notification::make()
             ->title($items->count().' '.strtolower($context).' updates queued')
             ->body(trim(($skipped > 0 ? $skipped.' excluded item(s) skipped. ' : '')
-                .'They run one at a time on the site — restore point, smoke test, and automatic rollback included.'))
+                .($this->site->fast_updates
+                    ? 'Fast mode: updates apply directly, without a restore point.'
+                    : 'They run one at a time on the site — restore point, smoke test, and automatic rollback included.')))
             ->success()
             ->send();
     }
@@ -325,7 +349,9 @@ class ViewSite extends Page
      */
     private function updateTypeFor(string $context): string
     {
-        return $context !== 'core' && $this->site->supportsCommand('update.safe')
+        return ! $this->site->fast_updates
+            && $context !== 'core'
+            && $this->site->supportsCommand('update.safe')
             ? 'update.safe'
             : 'update.run';
     }

@@ -21,6 +21,19 @@
                 Retry
             </x-filament::button>
         </x-filament::section>
+    @elseif($this->loginUrl)
+        <div class="plugsent-process plugsent-connecting">
+            <div class="plugsent-process-head">
+                <strong>WordPress admin is ready</strong>
+            </div>
+            <p class="plugsent-process-note">
+                You should have been redirected automatically. If nothing happened — or the site says the
+                link was already used — open wp-admin again:
+            </p>
+            <x-filament::button color="primary" wire:click="openLoginUrl">
+                Open wp-admin
+            </x-filament::button>
+        </div>
     @elseif($outstanding)
         <div class="plugsent-process plugsent-connecting">
             <div class="plugsent-process-head">
