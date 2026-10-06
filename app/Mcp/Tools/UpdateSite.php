@@ -138,6 +138,11 @@ class UpdateSite extends Tool
             ? ' They run one at a time on the site — restore point, smoke test, and automatic rollback included.'
             : ' They start within seconds — watch the site\'s update runs in the dashboard.';
 
+        if ($site->isStale()) {
+            $summary .= ' Warning: '.$site->name.' has not checked in for '.($site->last_seen_at?->diffForHumans() ?? 'a while')
+                .' — the updates start only when its connector is back, and expire after 1 hour.';
+        }
+
         return Response::text($summary);
     }
 }

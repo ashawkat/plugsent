@@ -342,6 +342,25 @@ class McpGatewayTest extends TestCase
         $this->assertSame(0, SiteCommand::query()->count());
     }
 
+    public function test_update_site_warns_when_the_site_has_stopped_checking_in(): void
+    {
+        [$owner, , $workspace, $visibleSite] = $this->workspaceWithVisibleAndHiddenSites();
+        $visibleSite->forceFill(['last_seen_at' => now()->subHours(7)])->save();
+
+        InventoryItem::create([
+            'site_id' => $visibleSite->id, 'context' => 'plugin', 'slug' => 'akismet',
+            'name' => 'Akismet', 'version' => '5.2', 'update_available' => true,
+            'update_version' => '5.3', 'active' => true,
+        ]);
+
+        PlugsentServer::actingAs($this->withAbilities($owner, ['mcp:read', 'mcp:write']))
+            ->tool(UpdateSite::class, ['site_id' => $visibleSite->id, 'context' => 'plugin'])
+            ->assertSee('Queued 1 plugin update(s)')
+            ->assertSee('has not checked in for 7 hours ago');
+
+        $this->assertSame(1, SiteCommand::query()->count());
+    }
+
     public function test_read_only_token_cannot_queue_updates_or_rescans(): void
     {
         [$owner, , , $visibleSite] = $this->workspaceWithVisibleAndHiddenSites();

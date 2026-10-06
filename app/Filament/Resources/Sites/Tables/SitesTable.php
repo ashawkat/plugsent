@@ -84,11 +84,16 @@ class SitesTable
                     ->state(fn (Site $record): string => self::uptimeStrip($record)),
                 TextColumn::make('status')
                     ->badge()
+                    ->state(fn (Site $record): string => $record->isStale() ? 'unreachable' : $record->status)
                     ->color(fn (string $state): string => match ($state) {
                         'connected' => 'success',
+                        'unreachable' => 'warning',
                         'error' => 'danger',
                         default => 'gray',
-                    }),
+                    })
+                    ->tooltip(fn (Site $record): ?string => $record->isStale()
+                        ? 'No check-in from this site for '.($record->last_seen_at?->diffForHumans() ?? 'a long time').' — it may be offline or its connector is stalled.'
+                        : null),
                 TextColumn::make('last_seen_at')
                     ->since()
                     ->sortable()

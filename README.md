@@ -50,6 +50,27 @@ channel — no firewall rules, no inbound ports, and never your WordPress admin 
   - **Branded everything** — every email (uptime, security, updates, password, invitations)
     shares the Plugsent-styled layout, now set in self-hosted **Google Sans**; the workspace
     invitation moved onto it too.
+- **Oct 2026 — control & trust** — updates you can see, modes you can choose:
+  - **Fast or safe updates, per site** — every site runs **safe mode** by default
+    (restore point → update → smoke test → automatic rollback). A header toggle on the site
+    page switches it to **fast mode** (updates apply directly — much quicker, nothing to roll
+    back), and the `update-site` MCP tool takes a `mode` parameter so agents choose per call.
+  - **Honest update progress** — the in-progress panel shows a real progress bar
+    ("3 of 5 done"), a ticking timer, and per-item state ("queued — waiting for the site" /
+    "updating"). If a site stops checking in or nothing moves for 5 minutes, it says so
+    plainly: the site may be offline, commands expire after an hour, re-run when it's back.
+  - **Offline detection** — a site whose connector stopped checking in reads as
+    **"unreachable · last seen …"** (amber) in the sites list and on its page instead of a
+    reassuring "connected", and queueing updates to it warns you up front.
+  - **Read-only MCP tokens by default** — new tokens can inspect but not mutate;
+    write access is an explicit opt-in, and every command an agent queues is stamped
+    "via MCP" with the account and token name in the site's History.
+  - **Connector downloads from the dashboard** — the Connect site flow offers a
+    "Download connector vX (.zip)" button that resolves the connector repo's latest GitHub
+    release (cached, with a releases-page fallback); forks can point it at their own repo.
+  - **Self-healing admin login** — the magic-link redirect retries itself if the first
+    navigation is swallowed, and the page offers an "Open wp-admin" fallback instead of
+    hanging on a spinner.
 - **Oct 2026 — MCP gateway** — plug Plugsent into any chat client or coding agent:
   `laravel/mcp` exposes a streamable-HTTP MCP server at `/mcp/plugsent`, authenticated with a
   per-user bearer token generated on **My account → MCP access**. Five tools — `list-sites`,
@@ -136,8 +157,10 @@ channel — no firewall rules, no inbound ports, and never your WordPress admin 
   the [connector plugin](https://github.com/ashawkat/plugsent-connector), done.
 - **Live inventory** — WordPress, plugin, and theme versions with update availability,
   refreshed on every check-in and re-scanned hourly across all connected sites.
-- **Safe updates** — restore point (files + streamed database dump) → update → smoke test →
-  automatic rollback. Core updates stay plain; old connectors keep the classic update path.
+- **Safe & fast updates** — safe mode (default): restore point (files + streamed database
+  dump) → update → smoke test → automatic rollback, with post-update verification against a
+  fresh scan. Fast mode per site (or per MCP call) skips the pipeline for speed. Core updates
+  stay plain; old connectors keep the classic update path.
 - **Plugin/theme actions** — activate, deactivate, delete, theme switching, update exclusions,
   manual restore — with capability-based UI (old connectors simply don't show new buttons).
 - **Uptime monitoring** — scheduled external checks, downtime incidents, email alerts, a
@@ -150,6 +173,9 @@ channel — no firewall rules, no inbound ports, and never your WordPress admin 
 - **Self-healing scheduler** — hourly scans, digests, and feed syncs run on the Laravel
   scheduler, and the app installs its own `schedule:run` cron entry when it notices the
   scheduler is missing (or run `php artisan plugsent:ensure-scheduler` yourself).
+- **Offline detection & honest progress** — unreachable sites read as "unreachable", queueing
+  warns you, and the update panel shows a live progress bar with a plain-language explanation
+  when nothing is moving.
 - **Connector protocol v1** — HMAC-SHA256 signed requests, timestamp tolerance, nonce replay
   protection, instant revocation, 120 req/min throttling.
 - **Revocable by design** — "Revoke access" kills the site's credentials on its next poll;
@@ -283,14 +309,14 @@ policies the UI uses — a member-role token cannot update a lead-only site.
 | 3 — Safety net | ✅ shipped | ✅ uptime + incidents + email alerts · ✅ Wordfence vulnerability feed & matching |
 | 3.5 — Security | ✅ shipped | Security score, health checks, connector-enforced hardening toggles, site tabs, history audit trail, quick-switcher |
 | 3.6 — Accounts & emails | ✅ shipped | Branded email templates (uptime/security/daily updates digest/password), My account page with email preferences, TOTP 2FA with recovery codes, revealable password fields |
-| 3.7 — Autopilot | ✅ shipped | Hourly inventory refresh, one configurable-time daily updates email, self-installing scheduler, `rescan-inventory` MCP tool, Google Sans email branding, post-update verification (connector "success" is checked against fresh inventory — no-update-taken runs flip to failed) |
+| 3.7 — Autopilot & control | ✅ shipped | Hourly inventory refresh, configurable daily updates email, self-installing scheduler, post-update verification, fast/safe update modes, offline detection with honest progress UI, read-only MCP tokens + audit trail, dashboard connector downloads |
 | 4 — Teams & MCP | 🟡 half shipped | ✅ invitations, roles, project-level RBAC · ✅ MCP gateway (Sanctum tokens, list/status/updates/rescan tools) · ⬜ public REST API |
 | 5 — Parity extras | 🔜 coming soon | Performance (PageSpeed) monitoring, broken-link checking, backups, malware scanning, activity log beyond commands, alerting rules |
 
 ## Development
 
 ```bash
-php artisan test        # 120 tests: protocol, signing, isolation, uptime, safe updates, MCP gateway, scheduler self-heal, Plugin Check audit
+php artisan test        # 136 tests: protocol, signing, isolation, uptime, safe updates, MCP gateway, scheduler self-heal, update verification, Plugin Check audit
 vendor/bin/pint         # code style
 ```
 

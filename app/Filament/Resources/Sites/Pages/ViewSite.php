@@ -334,11 +334,14 @@ class ViewSite extends Page
 
         Notification::make()
             ->title($items->count().' '.strtolower($context).' updates queued')
-            ->body(trim(($skipped > 0 ? $skipped.' excluded item(s) skipped. ' : '')
+            ->body(trim(($this->site->isStale()
+                    ? 'Warning: the site last checked in '.$this->site->last_seen_at?->diffForHumans().' — updates start only when it is back, and expire after 1 hour. '
+                    : '')
+                .($skipped > 0 ? $skipped.' excluded item(s) skipped. ' : '')
                 .($this->site->fast_updates
                     ? 'Fast mode: updates apply directly, without a restore point.'
                     : 'They run one at a time on the site — restore point, smoke test, and automatic rollback included.')))
-            ->success()
+            ->warning()
             ->send();
     }
 
@@ -464,10 +467,13 @@ class ViewSite extends Page
 
         Notification::make()
             ->title('Update queued')
-            ->body($type === 'update.safe'
-                ? "\"{$slug}\" will be updated with a restore point, smoke test, and automatic rollback — starting within seconds."
-                : "\"{$slug}\" will start within seconds — watch the status column.")
-            ->success()
+            ->body(($this->site->isStale()
+                    ? 'Warning: the site last checked in '.$this->site->last_seen_at?->diffForHumans().' — this update starts only when it is back. '
+                    : '')
+                .($type === 'update.safe'
+                    ? "\"{$slug}\" will be updated with a restore point, smoke test, and automatic rollback — starting within seconds."
+                    : "\"{$slug}\" will start within seconds — watch the status column."))
+            ->warning()
             ->send();
     }
 
@@ -860,13 +866,52 @@ class ViewSite extends Page
 
     public function runningProcesses(): Collection
     {
+        // No age cutoff on purpose: a stuck command is exactly what the
+        // progress panel must keep showing (with an explanation), not hide.
         return SiteCommand::query()
             ->where('site_id', $this->site->getKey())
             ->whereIn('type', ['update.run', 'update.safe', 'restore.apply', 'inventory.get', ...self::MANAGE_ACTION_TYPES])
             ->whereIn('status', [SiteCommand::STATUS_PENDING, SiteCommand::STATUS_DISPATCHED])
-            ->where('created_at', '>', now()->subMinutes(10))
             ->orderBy('id')
             ->get();
+    }
+
+    /**
+     * Progress of the newest update batch that still has outstanding
+     * commands: total size, completed count, and when it started — the
+     * progress bar's data.
+     *
+     * @return array{total: int, done: int, started: string, failed: int}|null
+     */
+    public function activeBatch(): ?array
+    {
+        $latest = SiteCommand::query()
+            ->where('site_id', $this->site->getKey())
+            ->whereIn('type', ['update.run', 'update.safe'])
+            ->whereNotNull('batch_id')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($latest === null) {
+            return null;
+        }
+
+        $all = SiteCommand::query()
+            ->where('site_id', $this->site->getKey())
+            ->where('batch_id', $latest->batch_id)
+            ->orderBy('id')
+            ->get();
+
+        if ($all->whereIn('status', [SiteCommand::STATUS_PENDING, SiteCommand::STATUS_DISPATCHED])->isEmpty()) {
+            return null; // batch fully settled — nothing in flight
+        }
+
+        return [
+            'total' => $all->count(),
+            'done' => $all->whereIn('status', [SiteCommand::STATUS_COMPLETED, SiteCommand::STATUS_FAILED])->count(),
+            'failed' => $all->where('status', SiteCommand::STATUS_FAILED)->count(),
+            'started' => (string) $all->min('created_at'),
+        ];
     }
 
     /**

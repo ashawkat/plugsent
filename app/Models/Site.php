@@ -113,6 +113,18 @@ class Site extends Model
         return $this->status === 'connected';
     }
 
+    /**
+     * Connected on paper, but the connector has not checked in recently —
+     * a paused plugin, a crashed poll loop, or a hosting outage. Queued
+     * commands sit until such a site comes back (they expire after an
+     * hour), so the UI should say "unreachable" instead of "connected".
+     */
+    public function isStale(int $minutes = 10): bool
+    {
+        return $this->isConnected()
+            && ($this->last_seen_at === null || $this->last_seen_at->lt(now()->subMinutes($minutes)));
+    }
+
     public function generateApiKey(): string
     {
         $key = 'plsk_'.bin2hex(random_bytes(20));

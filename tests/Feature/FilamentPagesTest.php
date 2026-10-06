@@ -37,6 +37,14 @@ class FilamentPagesTest extends TestCase
         $this->get("/app/{$workspace->slug}/connect-site")
             ->assertSee('Download connector')
             ->assertSee('/connector/download');
+
+        // A connected site whose connector stopped checking in reads as
+        // "unreachable", not "connected".
+        Site::query()->update(['last_seen_at' => now()->subHours(7)]);
+        $this->get("/app/{$workspace->slug}/sites/1")
+            ->assertSee('unreachable')
+            ->assertSee('7 hours ago');
+        $this->get("/app/{$workspace->slug}/sites")->assertSee('unreachable');
         $this->get("/app/{$workspace->slug}/sites/1")->assertOk();
         $this->get("/app/{$workspace->slug}/team")->assertOk();
     }

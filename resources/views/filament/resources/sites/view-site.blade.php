@@ -33,8 +33,18 @@
     @endphp
 
     <div class="plugsent-site-strip">
-        <span class="fi-badge fi-badge-size-md fi-color-{{ $connected ? 'success' : 'gray' }}">
-            <span class="fi-badge-label">{{ $this->site->status }}</span>
+        @php
+            $stale = $this->site->isStale();
+        @endphp
+        <span class="fi-badge fi-badge-size-md fi-color-{{ $connected ? ($stale ? 'warning' : 'success') : 'gray' }}"
+              @if($stale) title="No check-in from this site for {{ $this->site->last_seen_at?->diffForHumans() ?? 'a long time' }} — it may be offline or its connector is stalled." @endif>
+            <span class="fi-badge-label">
+                @if($connected && $stale)
+                    unreachable · last seen {{ $this->site->last_seen_at?->diffForHumans() ?? 'never' }}
+                @else
+                    {{ $this->site->status }}
+                @endif
+            </span>
         </span>
 
         <div class="plugsent-switcher" x-data="siteSwitcher" @click.outside="open = false" @keydown.escape="open = false">
@@ -99,26 +109,55 @@
     </nav>
 
     @if($running->isNotEmpty())
-        <div class="plugsent-process">
+        @php
+            $batch = $this->activeBatch();
+            $oldest = $running->min('created_at');
+            $elapsed = max(0, (int) now()->diffInSeconds($oldest));
+            $siteStale = $this->site->isStale();
+            $noProgress = $siteStale || $elapsed >= 300;
+        @endphp
+        <div class="plugsent-process" x-data="{ elapsed: @js($elapsed) }" x-init="setInterval(() => elapsed++, 1000)">
             <div class="plugsent-process-head">
                 <span class="plugsent-process-spinner"></span>
-                <strong>Process in progress</strong>
-                <span class="plugsent-process-elapsed">
-                    {{ max(0, (int) now()->diffInSeconds($running->first()->created_at)) }}s
-                </span>
+                <strong>
+                    @if($batch)
+                        Updating — <span x-text="elapsed"></span>s elapsed · <span>{{ $batch['done'] }} of {{ $batch['total'] }}</span> done
+                    @else
+                        Process in progress · <span x-text="elapsed"></span>s
+                    @endif
+                </strong>
             </div>
+
+            @if($batch)
+                <div style="height:6px; background:#e2e8f0; border-radius:3px; overflow:hidden; margin:8px 0;">
+                    <div style="height:100%; width:{{ $batch['total'] > 0 ? (int) round(($batch['done'] / $batch['total']) * 100) : 0 }}%; background:#4f46e5; transition:width .5s;"></div>
+                </div>
+            @endif
+
             <ul class="plugsent-process-steps">
                 @foreach($running as $cmd)
                     @php $inFlight = $cmd->status === \App\Models\SiteCommand::STATUS_DISPATCHED; @endphp
                     <li>
                         @if($inFlight)
-                            <span class="plugsent-spin">⟳</span> {{ $this->processSubject($cmd) }}
+                            <span class="plugsent-spin">⟳</span> Updating · {{ $this->processSubject($cmd) }}
                         @else
-                            <span class="plugsent-wait">○</span> Waiting for the site · {{ $this->processSubject($cmd) }}
+                            <span class="plugsent-wait">○</span> Queued — waiting for the site · {{ $this->processSubject($cmd) }}
                         @endif
                     </li>
                 @endforeach
             </ul>
+
+            @if($noProgress)
+                <p style="margin:10px 0 0; padding:10px 12px; background:#fffbeb; border:1px solid #fcd34d; border-radius:8px; font-size:13px; color:#92400e;">
+                    <strong>No progress for a while.</strong>
+                    The site last checked in {{ $this->site->last_seen_at?->diffForHumans() ?? 'never' }}
+                    @if(! $siteStale)
+                        , and these commands have been outstanding {{ (int) $elapsed / 60 }} min
+                    @endif
+                    — it may be offline, paused, or its connector stalled. Queued commands expire one hour after
+                    queueing and will need to be re-run once the site is back.
+                </p>
+            @endif
         </div>
     @endif
 
