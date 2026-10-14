@@ -228,4 +228,168 @@
             </div>
         @endif
     </div>
+    {{-- Passkeys --}}
+    <div class="plugsent-category">
+        <div class="plugsent-category-head">
+            <h2>Passkeys</h2>
+            @if($this->userPasskeys()->isNotEmpty())
+                <span class="plugsent-state plugsent-state-up">{{ $this->userPasskeys()->count() }} registered</span>
+            @else
+                <span class="plugsent-state plugsent-state-inactive">none</span>
+            @endif
+        </div>
+        <div style="padding: 14px 18px 18px;">
+            <p class="plugsent-note" style="margin-bottom: 12px;">
+                Passkeys sign you in with your fingerprint, face, or device PIN — nothing to type and
+                nothing to phish. A passkey also proves it is really you, so it replaces the 6-digit
+                code at sign-in. They live in your device's password manager (iCloud Keychain, Google
+                Password Manager, 1Password…) and sync to your other devices.
+            </p>
+
+            @if($this->userPasskeys()->isNotEmpty())
+                <div class="plugsent-passkey-list">
+                    @foreach($this->userPasskeys() as $passkey)
+                        <div class="plugsent-passkey-row">
+                            <div>
+                                <strong>{{ $passkey->name }}</strong>
+                                <span class="plugsent-muted">
+                                    @if($passkey->authenticator)
+                                        · {{ $passkey->authenticator }}
+                                    @endif
+                                    · added {{ $passkey->created_at->isoFormat('MMM D, YYYY') }}
+                                    @if($passkey->last_used_at)
+                                        · last used {{ $passkey->last_used_at->diffForHumans() }}
+                                    @endif
+                                </span>
+                            </div>
+                            <button type="button" class="plugsent-btn plugsent-btn-icon-danger"
+                                    wire:click="deletePasskey({{ $passkey->id }})"
+                                    wire:confirm="Remove this passkey? You will no longer be able to sign in with it.">
+                                Remove
+                            </button>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+
+            <div class="plugsent-form-grid cols-2" style="padding-top: 10px;">
+                <div class="plugsent-field">
+                    <label>Current password (to remove a passkey)</label>
+                    <input type="password" class="plugsent-input" wire:model.lazy="passkeyPassword"
+                           autocomplete="current-password" />
+                    @error('passkeyPassword') <p class="plugsent-error">{{ $message }}</p> @enderror
+                </div>
+                <div class="plugsent-field">
+                    <label>Device name (shown for the new passkey)</label>
+                    <input type="text" id="passkey-name" class="plugsent-input"
+                           placeholder="MacBook Touch ID" maxlength="60" />
+                </div>
+            </div>
+            <button type="button" id="passkey-register" class="plugsent-btn plugsent-btn-primary"
+                    onclick="plugsentRegisterPasskey(this)">
+                Add passkey
+            </button>
+            <p id="passkey-feedback" class="plugsent-note" style="margin-top: 10px;" hidden></p>
+        </div>
+    </div>
+
 </x-filament-panels::page>
+
+@assets
+    <script>
+        function plugsentB64uEncode(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+
+            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        function plugsentB64uDecode(value) {
+            let base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+            while (base64.length % 4 !== 0) {
+                base64 += '=';
+            }
+
+            return Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+        }
+
+        function plugsentPasskeyFeedback(message, isError) {
+            const el = document.getElementById('passkey-feedback');
+            if (!el) {
+                if (isError) { alert(message); }
+
+                return;
+            }
+            el.textContent = message;
+            el.hidden = false;
+            el.style.color = isError ? '#dc2626' : '';
+        }
+
+        async function plugsentRegisterPasskey(button) {
+            if (!window.PublicKeyCredential) {
+                plugsentPasskeyFeedback('This browser does not support passkeys.', true);
+
+                return;
+            }
+
+            const name = (document.getElementById('passkey-name')?.value ?? '').trim() || 'My device';
+            button.disabled = true;
+
+            try {
+                const optionsRes = await fetch('{{ route('passkey.registration-options') }}', {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                if (!optionsRes.ok) {
+                    throw new Error('Could not start passkey setup — reload the page and try again.');
+                }
+                const { options } = await optionsRes.json();
+                options.challenge = plugsentB64uDecode(options.challenge);
+                if (options.user?.id) {
+                    options.user.id = plugsentB64uDecode(options.user.id);
+                }
+                (options.excludeCredentials ?? []).forEach((descriptor) => {
+                    descriptor.id = plugsentB64uDecode(descriptor.id);
+                });
+
+                const credential = await navigator.credentials.create({ publicKey: options });
+
+                const saved = await fetch('{{ route('passkey.store') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({
+                        name,
+                        credential: {
+                            id: credential.id,
+                            rawId: plugsentB64uEncode(credential.rawId),
+                            type: credential.type,
+                            response: {
+                                clientDataJSON: plugsentB64uEncode(credential.response.clientDataJSON),
+                                attestationObject: plugsentB64uEncode(credential.response.attestationObject),
+                                transports: credential.response.getTransports?.() ?? [],
+                            },
+                        },
+                    }),
+                });
+                if (!saved.ok) {
+                    throw new Error('The passkey could not be saved — try again.');
+                }
+
+                window.location.reload();
+            } catch (error) {
+                if (error?.name === 'NotAllowedError' || error?.name === 'AbortError') {
+                    plugsentPasskeyFeedback('Passkey setup was cancelled.', false);
+                } else {
+                    plugsentPasskeyFeedback(error?.message ?? 'Something went wrong.', true);
+                }
+            } finally {
+                button.disabled = false;
+            }
+        }
+    </script>
+@endassets

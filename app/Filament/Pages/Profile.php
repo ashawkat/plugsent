@@ -10,6 +10,9 @@ use chillerlan\QRCode\QROptions;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Collection;
+use Laravel\Passkeys\Actions\DeletePasskey;
+use Laravel\Passkeys\Passkey;
 use PragmaRX\Google2FA\Google2FA;
 use Throwable;
 
@@ -48,6 +51,9 @@ class Profile extends Page
     public ?string $pendingSecret = null;
 
     public ?array $recoveryCodes = null;
+
+    // Passkeys (removal is gated on the current password)
+    public ?string $passkeyPassword = null;
 
     // MCP access (plain text token, shown once right after generating)
     public ?string $mcpToken = null;
@@ -218,6 +224,43 @@ class Profile extends Page
         $this->recoveryCodes = $codes;
 
         Notification::make()->title('New recovery codes generated')->body('Old codes no longer work.')->success()->send();
+    }
+
+    // ---------------- Passkeys ----------------
+
+    /**
+     * The signed-in user's registered passkeys, oldest first, for the
+     * management table on this page.
+     *
+     * @return Collection<int, Passkey>
+     */
+    public function userPasskeys(): Collection
+    {
+        return auth()->user()->passkeys()->orderBy('created_at')->get();
+    }
+
+    /**
+     * Remove one of the user's passkeys. Destructive, so it repeats the
+     * password gate the 2FA controls use — an open browser tab alone
+     * must not be able to strip a way back in.
+     */
+    public function deletePasskey(int $passkeyId): void
+    {
+        $this->validate([
+            'passkeyPassword' => ['required', 'current_password'],
+        ], [
+            'passkeyPassword.current_password' => 'Your current password is not correct.',
+        ], ['passkeyPassword' => 'current password']);
+
+        $passkey = auth()->user()->passkeys()->whereKey($passkeyId)->first();
+
+        if ($passkey !== null) {
+            app(DeletePasskey::class)(auth()->user(), $passkey);
+
+            Notification::make()->title('Passkey removed')->success()->send();
+        }
+
+        $this->reset('passkeyPassword');
     }
 
     // ---------------- MCP access ----------------

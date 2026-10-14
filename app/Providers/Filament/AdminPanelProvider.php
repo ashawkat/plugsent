@@ -44,6 +44,17 @@ class AdminPanelProvider extends PanelProvider
                 'primary' => Color::Indigo,
             ])
             ->renderHook(
+                PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
+                fn (): Htmlable => view('filament.partials.login-extras'),
+            )
+            ->renderHook(
+                PanelsRenderHook::FOOTER,
+                fn (): Htmlable => new HtmlString(
+                    '<a class="plugsent-footer-support" href="https://ko-fi.com/adnanshawkat" target="_blank" rel="noopener noreferrer">'
+                   .'Plugsent is free &amp; open source — support it on Ko-fi &hearts;</a>'
+                ),
+            )
+            ->renderHook(
                 PanelsRenderHook::HEAD_END,
                 fn (): Htmlable => new HtmlString(
                     '<link rel="preload" href="/fonts/google-sans-latin.woff2" as="font" type="font/woff2" crossorigin>'

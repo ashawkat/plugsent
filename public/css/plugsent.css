@@ -2592,3 +2592,108 @@ body {
     font-size: 12.5px;
     font-weight: 600;
 }
+
+/* Passkeys — profile management rows and login button */
+.plugsent-passkey-list {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 14px;
+}
+
+.plugsent-passkey-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f1f4;
+}
+
+.dark .plugsent-passkey-row {
+    border-color: #20242a;
+}
+
+.plugsent-passkey-row:last-child {
+    border-bottom: none;
+}
+
+.plugsent-passkey-row .plugsent-muted {
+    font-size: 12px;
+}
+
+.plugsent-login-extras {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    width: 100%;
+    margin-top: 18px;
+    text-align: center;
+}
+
+.plugsent-login-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #9ca3af;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.plugsent-login-divider::before,
+.plugsent-login-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e5e7eb;
+}
+
+.dark .plugsent-login-divider::before,
+.dark .plugsent-login-divider::after {
+    background: #374151;
+}
+
+.plugsent-login-passkey {
+    justify-content: center;
+    padding: 8px 14px;
+}
+
+.plugsent-login-passkey svg {
+    width: 16px;
+    height: 16px;
+}
+
+.plugsent-login-message {
+    margin: 0;
+    font-size: 12.5px;
+    color: #dc2626;
+}
+
+.plugsent-login-support,
+.plugsent-footer-support {
+    font-size: 12.5px;
+    color: #6b7280;
+}
+
+.plugsent-login-support a,
+.plugsent-footer-support {
+    color: #4f46e5;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.plugsent-login-support a:hover,
+.plugsent-footer-support:hover {
+    text-decoration: underline;
+}
+
+.dark .plugsent-login-support,
+.dark .plugsent-footer-support {
+    color: #9ca3af;
+}
+
+.dark .plugsent-login-support a,
+.dark .plugsent-footer-support {
+    color: #a5b4fc;
+}

@@ -14,6 +14,11 @@
   <a href="https://github.com/ashawkat/plugsent-connector"><img src="https://img.shields.io/badge/connector-GPL--2.0-green" alt="Connector: GPL-2.0"></a>
 </p>
 
+<p align="center">
+  <strong>Plugsent is free &amp; open source.</strong> If it saves you money, consider a small donation —<br>
+  <a href="https://ko-fi.com/adnanshawkat"><img src="https://storage.ko-fi.com/cdn/kofi6.png?v=6" alt="Buy Me a Coffee on ko-fi.com" height="36"></a>
+</p>
+
 ---
 
 Plugsent is an alternative to WP Umbrella and ManageWP that **you host yourself**. Pair your
@@ -54,6 +59,8 @@ full, current list.
 - **Self-healing admin login** — the magic-link redirect retries itself and always offers a
   manual fallback.
 - **MCP gateway** — five policy-scoped tools for chat clients and coding agents (see below).
+- **Passkeys** — sign in with your fingerprint, face, or device PIN instead of (or alongside)
+  password + 2FA; register and manage passkeys from My account.
 - **Branded everything** — every email shares the Plugsent layout in self-hosted Google Sans.
 
 **September 2026 — the WP Umbrella-class feature set**
@@ -93,9 +100,12 @@ full, current list.
   pause/resume toggle per site, domain & SSL expiry tracking, and a 30-day uptime-rate view.
 - **Security & hardening** — Wordfence vulnerability matching with per-vulnerability detail
   popups, a 14-check security score, and six connector-enforced hardening toggles per site.
-- **Emails & accounts** — branded templates (Google Sans) for uptime/security/update
-  emails with per-user opt-outs; a My account page (profile, password change, 2FA setup);
-  TOTP two-factor login with recovery codes; show/hide toggles on all password fields.
+- **Passkeys & two-factor** — passkey sign-in (WebAuthn: fingerprint, face, or device PIN —
+  nothing to type or phish) alongside TOTP two-factor with recovery codes; a passkey
+  replaces the password *and* the 6-digit code at sign-in. Both are managed from My account.
+- **Emails & accounts** — branded templates (Google Sans) for uptime/security/update emails
+  with per-user opt-outs; a My account page (profile, password change, email preferences);
+  show/hide toggles on all password fields.
 - **Self-healing scheduler** — hourly scans, digests, and feed syncs run on the Laravel
   scheduler, and the app installs its own `schedule:run` cron entry when it notices the
   scheduler is missing (or run `php artisan plugsent:ensure-scheduler` yourself).
@@ -156,6 +166,10 @@ php scripts/simulate-site.php http://127.0.0.1:8000 <pairing-code>
   values override `.env`.
 - **Fonts** — emails and the dashboard render in self-hosted Google Sans (served from
   `public/fonts`); no external font CDN calls.
+- **Passkeys** — passkey sign-in is bound to the domain in `APP_URL`: the WebAuthn
+  relying-party ID and allowed origins derive from it. If you change domains, users must
+  re-register their passkeys. Ceremonies run entirely in the browser — no extra service,
+  port, or dependency is needed.
 
 ### Chat with Plugsent over MCP
 
@@ -234,7 +248,7 @@ policies the UI uses — a member-role token cannot update a lead-only site.
 | 2 — Safe updates | ✅ shipped | Restore point → update → smoke test → auto-rollback, update audit trail |
 | 3 — Safety net | ✅ shipped | ✅ uptime + incidents + email alerts · ✅ Wordfence vulnerability feed & matching |
 | 3.5 — Security | ✅ shipped | Security score, health checks, connector-enforced hardening toggles, site tabs, history audit trail, quick-switcher |
-| 3.6 — Accounts & emails | ✅ shipped | Branded email templates (uptime/security/daily updates digest/password), My account page with email preferences, TOTP 2FA with recovery codes, revealable password fields |
+| 3.6 — Accounts & emails | ✅ shipped | Branded email templates (uptime/security/daily updates digest/password), My account page with email preferences, TOTP 2FA with recovery codes, passkey sign-in (WebAuthn), revealable password fields |
 | 3.7 — Autopilot & control | ✅ shipped | Hourly inventory refresh, configurable daily updates email, self-installing scheduler, post-update verification, fast/safe update modes, offline detection with honest progress UI, read-only MCP tokens + audit trail, dashboard connector downloads |
 | 4 — Teams & MCP | 🟡 half shipped | ✅ invitations, roles, project-level RBAC · ✅ MCP gateway (Sanctum tokens, list/status/updates/rescan tools) · ⬜ public REST API |
 | 5 — Parity extras | 🔜 coming soon | Performance (PageSpeed) monitoring, broken-link checking, backups, malware scanning, activity log beyond commands, alerting rules |
@@ -242,7 +256,7 @@ policies the UI uses — a member-role token cannot update a lead-only site.
 ## Development
 
 ```bash
-php artisan test        # 136 tests: protocol, signing, isolation, uptime, safe updates, MCP gateway, scheduler self-heal, update verification, Plugin Check audit
+php artisan test        # 145 tests: protocol, signing, isolation, uptime, safe updates, MCP gateway, scheduler self-heal, update verification, passkeys, Plugin Check audit
 vendor/bin/pint         # code style
 ```
 
@@ -256,9 +270,21 @@ PRs are welcome! Please make sure `php artisan test` passes. The connector plugi
 and follows the [WordPress Plugin Check](https://wordpress.org/plugins/plugin-check/) rules —
 its static audit runs with the main suite.
 
+## Support the project
+
+Plugsent is free, open source, and built in spare time. If it saves you a ManageWP/WP Umbrella
+subscription, consider [supporting the work on Ko-fi](https://ko-fi.com/adnanshawkat) — every
+coffee keeps the releases coming.
+
+<p align="center">
+  <a href="https://ko-fi.com/adnanshawkat"><img src="docs/support-banner.png" alt="Support My Work — Help Me Build Open Source Tools, on Ko-fi" width="720"></a>
+</p>
+
 ## Security
 
-Plugsent pairs sites with per-site key pairs and never stores WordPress admin passwords. If
+Plugsent pairs sites with per-site key pairs and never stores WordPress admin passwords.
+Accounts get optional TOTP two-factor with recovery codes and passkey (WebAuthn) sign-in —
+both opt-in from My account, with passkey removal gated behind your current password. If
 you find a vulnerability, please use GitHub's **Report a vulnerability** (Security tab) rather
 than a public issue.
 
